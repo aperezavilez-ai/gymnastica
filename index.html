@@ -123,6 +123,12 @@ body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(
 .sb-it:hover{background:var(--g50);color:var(--g900)}
 .sb-it.on{background:var(--b50);color:var(--b700);border-color:var(--b100);font-weight:600}
 .sb-it .ic{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.sb-it.sb-staff{color:var(--p700);font-weight:600}
+.sb-it.sb-staff:hover{background:var(--p50);color:var(--p800)}
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;max-height:240px;overflow-y:auto;padding:12px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200)}
+.perm-grid label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--g700);cursor:pointer;margin:0}
+.perm-grid input[type=checkbox]{width:16px;height:16px;accent-color:var(--b600);flex-shrink:0}
+.perm-tools{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .reg-card{cursor:pointer;transition:all .2s}
 .reg-card:hover{border-color:var(--b200);box-shadow:var(--sh2);transform:translateY(-1px)}
 .cal-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
@@ -1331,6 +1337,33 @@ Gymnastica</textarea></div>
   </div>
 </div>
 
+<!-- ALTA DE PERSONAL -->
+<div class="mbg" id="mdl-altaPersonal" onclick="if(event.target.classList.contains('mbg'))closeMdl('altaPersonal')">
+  <div class="mdl" style="max-width:520px">
+    <div class="mdl-t">Alta de personal</div>
+    <div class="mdl-s">Crea acceso al sistema y asigna permisos por módulo</div>
+    <div class="fg"><label class="flb">Nombre completo</label><input class="finp" id="personalNombre" placeholder="Ej. Ana García"></div>
+    <div class="g2">
+      <div class="fg"><label class="flb">Correo de acceso</label><input class="finp" id="personalEmail" type="email" placeholder="nombre@gymnastica.app"></div>
+      <div class="fg"><label class="flb">Contraseña inicial</label><input class="finp" id="personalPass" type="password" placeholder="Mín. 6 caracteres"></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label class="flb">Puesto / área</label><input class="finp" id="personalPuesto" placeholder="Recepción, entrenador..."></div>
+      <div class="fg"><label class="flb">Tipo de cuenta</label><select class="finp" id="personalRol" onchange="togglePersonalPermisosUI()"><option value="operador">Operador (permisos personalizados)</option><option value="admin">Administrador (acceso total)</option></select></div>
+    </div>
+    <div class="fg" id="personalPermisosWrap">
+      <label class="flb">Permisos del sistema</label>
+      <div class="perm-grid" id="personalPermisosList"></div>
+      <div class="perm-tools">
+        <button type="button" class="btn bw btn-xs" onclick="marcarTodosPermisos(true)">✓ Marcar todos</button>
+        <button type="button" class="btn bw btn-xs" onclick="marcarTodosPermisos(false)">✕ Quitar todos</button>
+        <button type="button" class="btn bw btn-xs" onclick="aplicarPlantillaPermisos('operador')">Plantilla operador</button>
+      </div>
+    </div>
+    <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('altaPersonal')">Cancelar</button><button type="button" class="btn bp" onclick="guardarAltaPersonal()">Dar de alta</button></div>
+  </div>
+</div>
+
 <!-- CONFIGURACIÓN -->
 <div class="mbg" id="mdl-config" onclick="if(event.target.classList.contains('mbg'))closeMdl('config')">
   <div class="mdl">
@@ -1598,6 +1631,102 @@ const MENUS={
   ],
 };
 
+const PERMISOS_MODULOS=MENUS.admin.map(m=>({id:m.id,lbl:m.lbl}));
+const PERMISOS_PLANTILLA_OPERADOR=MENUS.operador.map(m=>m.id);
+
+function inicialesDe(nombre){
+  return String(nombre||'').trim().split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'US';
+}
+
+function getMenuUsuario(){
+  if(currentRole==='padre')return MENUS.padre;
+  if(currentRole==='admin')return MENUS.admin;
+  if(currentUser?.permisos?.length)return MENUS.admin.filter(m=>currentUser.permisos.includes(m.id));
+  return MENUS.operador;
+}
+
+function renderPermisosChecklist(seleccionados){
+  const wrap=document.getElementById('personalPermisosList');
+  if(!wrap)return;
+  const set=new Set(seleccionados||[]);
+  wrap.innerHTML=PERMISOS_MODULOS.map(p=>`
+    <label><input type="checkbox" class="perm-mod-chk" value="${p.id}" ${set.has(p.id)?'checked':''}> ${p.lbl}</label>
+  `).join('');
+}
+
+function permisosSeleccionadosModal(){
+  return [...document.querySelectorAll('.perm-mod-chk:checked')].map(el=>el.value);
+}
+
+function marcarTodosPermisos(on){
+  document.querySelectorAll('.perm-mod-chk').forEach(c=>{c.checked=!!on;});
+}
+
+function aplicarPlantillaPermisos(tipo){
+  if(tipo==='operador')renderPermisosChecklist(PERMISOS_PLANTILLA_OPERADOR);
+  else renderPermisosChecklist(PERMISOS_MODULOS.map(p=>p.id));
+}
+
+function togglePersonalPermisosUI(){
+  const rol=document.getElementById('personalRol')?.value||'operador';
+  const wrap=document.getElementById('personalPermisosWrap');
+  if(!wrap)return;
+  if(rol==='admin'){
+    wrap.style.opacity='.55';
+    wrap.querySelectorAll('input,button').forEach(el=>{el.disabled=true;});
+    renderPermisosChecklist(PERMISOS_MODULOS.map(p=>p.id));
+  }else{
+    wrap.style.opacity='1';
+    wrap.querySelectorAll('input,button').forEach(el=>{el.disabled=false;});
+    if(!permisosSeleccionadosModal().length)aplicarPlantillaPermisos('operador');
+  }
+}
+
+function abrirAltaPersonal(){
+  if(currentRole!=='admin'){toast('Solo el administrador puede dar de alta personal','⚠️');return;}
+  ['personalNombre','personalEmail','personalPass','personalPuesto'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.value='';
+  });
+  const rol=document.getElementById('personalRol');
+  if(rol)rol.value='operador';
+  renderPermisosChecklist(PERMISOS_PLANTILLA_OPERADOR);
+  togglePersonalPermisosUI();
+  openMdl('altaPersonal');
+}
+
+function guardarAltaPersonal(){
+  if(currentRole!=='admin'){toast('Sin permisos para esta acción','⚠️');return;}
+  const nombre=document.getElementById('personalNombre')?.value?.trim();
+  const emailRaw=document.getElementById('personalEmail')?.value?.trim().toLowerCase();
+  const pass=document.getElementById('personalPass')?.value?.trim();
+  const puesto=document.getElementById('personalPuesto')?.value?.trim()||'Personal';
+  const rol=document.getElementById('personalRol')?.value||'operador';
+  if(!nombre||!emailRaw||!pass){toast('Completa nombre, correo y contraseña','⚠️');return;}
+  if(pass.length<6){toast('La contraseña debe tener al menos 6 caracteres','⚠️');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)){toast('Correo no válido','⚠️');return;}
+  if(USUARIOS[emailRaw]){toast('Ese correo ya está registrado','⚠️');return;}
+  let permisos=[];
+  if(rol==='admin')permisos=PERMISOS_MODULOS.map(p=>p.id);
+  else{
+    permisos=permisosSeleccionadosModal();
+    if(!permisos.length){toast('Selecciona al menos un permiso','⚠️');return;}
+  }
+  USUARIOS[emailRaw]={
+    pass,
+    role:rol,
+    nombre,
+    iniciales:inicialesDe(nombre),
+    color:'var(--p600)',
+    puesto,
+    permisos,
+    creado:new Date().toLocaleDateString('es-MX'),
+  };
+  saveUsers();
+  closeMdl('altaPersonal');
+  toast(`${nombre} registrado · ${permisos.length} permisos asignados`,'✓');
+}
+
 // ═══════ LOGIN ═══════
 let loginMode='auth';
 
@@ -1663,6 +1792,7 @@ function ensureUsuariosCredenciales(){
     if(!u.iniciales)u.iniciales=def.iniciales;
     if(!u.color)u.color=def.color;
     if(def.hijos?.length&&(!u.hijos||!u.hijos.length))u.hijos=JSON.parse(JSON.stringify(def.hijos));
+    if(Array.isArray(u.permisos))u.permisos=[...u.permisos];
   });
 }
 
@@ -1716,7 +1846,10 @@ function buildUI(){
   if(ver)ver.textContent='v'+APP_VERSION;
   const pill=document.getElementById('rolePill');
   if(currentRole==='admin'){pill.textContent='Administrador';pill.className='role-pill rp-admin';}
-  else if(currentRole==='operador'){pill.textContent='Operador';pill.className='role-pill rp-op';}
+  else if(currentRole==='operador'){
+    pill.textContent=currentUser?.puesto||'Operador';
+    pill.className='role-pill rp-op';
+  }
   else{pill.textContent='Padre / Tutor';pill.className='role-pill rp-padre';}
 
   const av=document.getElementById('uAv');
@@ -1739,7 +1872,7 @@ function buildUI(){
   document.getElementById('topbar')?.classList.toggle('padre-mode',isPadre);
 
   const badges=getMenuBadges();
-  const menu=(MENUS[currentRole]||MENUS.admin).map(m=>{
+  const menu=getMenuUsuario().map(m=>{
     if(m.id==='estudiantes')return{...m,badge:badges.estudiantes,btype:'sbn'};
     if(m.id==='pagos'&&badges.pagos)return{...m,badge:badges.pagos,btype:'sba'};
     if(m.id==='pagos')return{...m,badge:undefined};
@@ -1758,6 +1891,7 @@ function buildUI(){
       ${menu.map(renderSbNavItem).join('')}
     </div>
     <div class="sb-bot">
+      ${currentRole==='admin'?'<div class="sb-it sb-staff" onclick="abrirAltaPersonal()">👤 Alta de personal</div>':''}
       <div class="sb-it" onclick="openConfig()">⚙️ Configuración</div>
       <div class="sb-it" onclick="showLogin()">🚪 Cerrar sesión</div>
     </div>`;
