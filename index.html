@@ -1187,6 +1187,27 @@ Gymnastica</textarea></div>
   </div>
 </div>
 
+<!-- MODIFICAR PAGO -->
+<div class="mbg" id="mdl-editPago" onclick="if(event.target.classList.contains('mbg'))closeMdl('editPago')">
+  <div class="mdl">
+    <div class="mdl-t">Modificar pago</div>
+    <div class="mdl-s" id="editPagoSub">Actualiza estado, monto o cancela el cobro</div>
+    <input type="hidden" id="editPagoId">
+    <div class="fg"><label class="flb">Estudiante</label><input class="finp" id="editPagoAlumno" readonly style="background:var(--g50)"></div>
+    <div class="g2"><div class="fg"><label class="flb">Tipo</label><input class="finp" id="editPagoTipo" readonly style="background:var(--g50)"></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="editPagoPeriodo"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Clase / Evento</label><input class="finp" id="editPagoClase"></div><div class="fg"><label class="flb">Monto</label><input class="finp" id="editPagoMonto" placeholder="$850"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Estado</label><select class="finp" id="editPagoEstado" onchange="toggleEditPagoFecha()"><option value="pendiente">Pendiente</option><option value="vencido">Vencido</option><option value="pagado">Pagado</option><option value="cancelado">Cancelado</option></select></div><div class="fg"><label class="flb">Fecha de pago</label><input class="finp" id="editPagoFecha" placeholder="01/Jun/2026"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Método</label><select class="finp" id="editPagoMetodo"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div><div class="fg"><label class="flb">Cuenta destino</label><select class="finp" id="editPagoCuenta"></select></div></div>
+    <div class="fg"><label class="flb">Notas (opcional)</label><input class="finp" id="editPagoNotas" placeholder="Motivo de cambio, referencia bancaria..."></div>
+    <div class="mdl-act" style="flex-wrap:wrap;gap:8px">
+      <button class="btn btn-sm" type="button" style="background:var(--r50);color:var(--r600);border:1.5px solid var(--r100)" onclick="cancelarPagoRegistro()">✕ Cancelar pago</button>
+      <span style="flex:1"></span>
+      <button class="btn bw" type="button" onclick="closeMdl('editPago')">Cerrar</button>
+      <button class="btn bp" type="button" onclick="guardarEdicionPago()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- TRANSFERIR FONDOS -->
 <div class="mbg" id="mdl-transferir" onclick="if(event.target.classList.contains('mbg'))closeMdl('transferir')">
   <div class="mdl">
@@ -1976,7 +1997,8 @@ function renderEst(){
   updateEstudiantesStats();
 }
 
-const PAGO_EST_PRIO={vencido:0,pendiente:1,pagado:2};
+const PAGO_EST_PRIO={vencido:0,pendiente:1,pagado:2,cancelado:3};
+let editPagoId=null;
 
 function ensureCuentas(){
   if(!DB.cuentas?.length){
@@ -2117,16 +2139,141 @@ function ejecutarTransferencia(){
   toast(`$${monto.toLocaleString('es-MX')} transferidos a ${cD.nombre}`,'✓');
 }
 
+function pagoEstaCobrado(est){return est==='pagado';}
+
+function ajustarSaldoCuenta(cuentaId,delta){
+  const c=DB.cuentas?.find(x=>x.id===(cuentaId||'principal'));
+  if(c&&delta)c.saldo+=delta;
+}
+
+function revertirCobroEnCuenta(p){
+  if(!p||!pagoEstaCobrado(p.est))return;
+  ajustarSaldoCuenta(p.cuenta,-parseMontoNum(p.monto));
+}
+
+function aplicarCobroEnCuenta(p){
+  if(!p||!pagoEstaCobrado(p.est))return;
+  ajustarSaldoCuenta(p.cuenta,parseMontoNum(p.monto));
+}
+
+function syncEstadoPagoAlumno(nombre){
+  const est=DB.estudiantes.find(e=>e.n===nombre);
+  if(!est)return;
+  const periodo=getPeriodoActual();
+  const mensualidades=(DB.pagos||[]).filter(p=>p.a===nombre&&p.tipo==='Mensualidad'&&p.periodo===periodo&&p.est!=='cancelado');
+  if(!mensualidades.length)return;
+  if(mensualidades.some(p=>p.est==='pagado'))est.est='pagado';
+  else if(mensualidades.some(p=>p.est==='vencido'))est.est='vencido';
+  else est.est='pendiente';
+}
+
+function badgeEstadoPago(est){
+  if(est==='pagado')return '<span class="badge bg">✓ Pagado</span>';
+  if(est==='vencido')return '<span class="badge br">⚠ Vencido</span>';
+  if(est==='cancelado')return '<span class="badge" style="background:var(--g100);color:var(--g600)">✕ Cancelado</span>';
+  return '<span class="badge by">⏰ Pendiente</span>';
+}
+
+function toggleEditPagoFecha(){
+  const est=document.getElementById('editPagoEstado')?.value;
+  const fecha=document.getElementById('editPagoFecha');
+  if(!fecha)return;
+  if(est==='pagado'){
+    if(!fecha.value||fecha.value==='—')fecha.value=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+    fecha.disabled=false;
+  }else{
+    fecha.value=est==='cancelado'?'—':(fecha.value==='—'?'':fecha.value);
+    if(est!=='pagado')fecha.disabled=true;
+  }
+}
+
+function abrirEditarPago(id){
+  ensureCuentas();
+  ensurePagoIds();
+  const p=DB.pagos.find(x=>x.id===id);
+  if(!p){toast('Pago no encontrado','⚠️');return;}
+  editPagoId=id;
+  document.getElementById('editPagoId').value=id;
+  document.getElementById('editPagoAlumno').value=p.a;
+  document.getElementById('editPagoTipo').value=p.tipo;
+  document.getElementById('editPagoPeriodo').value=p.periodo||'';
+  document.getElementById('editPagoClase').value=p.clase||'';
+  document.getElementById('editPagoMonto').value=p.monto||'';
+  document.getElementById('editPagoEstado').value=p.est||'pendiente';
+  document.getElementById('editPagoFecha').value=p.fecha&&p.fecha!=='—'?p.fecha:'';
+  document.getElementById('editPagoMetodo').value=p.metodo||'Efectivo';
+  document.getElementById('editPagoNotas').value=p.notas||'';
+  const sub=document.getElementById('editPagoSub');
+  if(sub)sub.textContent=`${p.tipo} · ${p.periodo||'—'} · ${p.a}`;
+  const sel=document.getElementById('editPagoCuenta');
+  if(sel)sel.innerHTML=DB.cuentas?.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')||'';
+  if(sel)sel.value=p.cuenta||'principal';
+  toggleEditPagoFecha();
+  openMdl('editPago');
+}
+
+function guardarEdicionPago(){
+  const id=document.getElementById('editPagoId')?.value||editPagoId;
+  const p=DB.pagos.find(x=>x.id===id);
+  if(!p){toast('Pago no encontrado','⚠️');return;}
+  const estAnterior=p.est;
+  const cuentaAnterior=p.cuenta||'principal';
+  const montoAnterior=parseMontoNum(p.monto);
+  const nuevoEst=document.getElementById('editPagoEstado')?.value||'pendiente';
+  let montoStr=document.getElementById('editPagoMonto')?.value?.trim()||p.monto;
+  if(montoStr&&!montoStr.startsWith('$'))montoStr='$'+montoStr;
+  const nuevoMonto=parseMontoNum(montoStr);
+  const nuevaCuenta=document.getElementById('editPagoCuenta')?.value||'principal';
+  if(pagoEstaCobrado(estAnterior))revertirCobroEnCuenta({est:estAnterior,cuenta:cuentaAnterior,monto:p.monto});
+  p.periodo=document.getElementById('editPagoPeriodo')?.value?.trim()||p.periodo;
+  p.clase=document.getElementById('editPagoClase')?.value?.trim()||p.clase;
+  p.monto=montoStr;
+  p.est=nuevoEst;
+  p.cuenta=nuevaCuenta;
+  p.metodo=document.getElementById('editPagoMetodo')?.value||'Efectivo';
+  p.notas=document.getElementById('editPagoNotas')?.value?.trim()||'';
+  if(nuevoEst==='pagado'){
+    const f=document.getElementById('editPagoFecha')?.value?.trim();
+    p.fecha=f||new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+    aplicarCobroEnCuenta(p);
+    if(!pagoEstaCobrado(estAnterior)){
+      const concepto=`${p.tipo} ${p.periodo||''}`.trim();
+      crearReciboYEnviar(p.a,concepto,p.monto,p.metodo||'Efectivo',true);
+    }
+  }else{
+    p.fecha=nuevoEst==='cancelado'?'—':(document.getElementById('editPagoFecha')?.value?.trim()||'—');
+  }
+  syncEstadoPagoAlumno(p.a);
+  saveDB();closeMdl('editPago');editPagoId=null;
+  renderPagos();renderEst();renderDashboardStats();renderRecibos();
+  const msg=nuevoEst==='pagado'?'Pago marcado como pagado':nuevoEst==='cancelado'?'Pago cancelado':'Pago actualizado';
+  toast(msg,'✓');
+}
+
+function cancelarPagoRegistro(){
+  const id=document.getElementById('editPagoId')?.value||editPagoId;
+  const p=DB.pagos.find(x=>x.id===id);
+  if(!p)return;
+  if(!confirm(`¿Cancelar el pago de ${p.a} (${p.tipo} · ${p.periodo})?`))return;
+  if(pagoEstaCobrado(p.est))revertirCobroEnCuenta(p);
+  p.est='cancelado';
+  p.fecha='—';
+  syncEstadoPagoAlumno(p.a);
+  saveDB();closeMdl('editPago');editPagoId=null;
+  renderPagos();renderEst();renderDashboardStats();
+  toast('Pago cancelado','✓');
+}
+
 function cobrarPago(id){
   const p=DB.pagos.find(x=>x.id===id);
-  if(!p||p.est==='pagado')return;
-  const monto=parseMontoNum(p.monto);
-  const cuenta=DB.cuentas.find(c=>c.id===(p.cuenta||'principal'));
-  if(cuenta&&monto)cuenta.saldo+=monto;
+  if(!p||p.est==='pagado'||p.est==='cancelado')return;
   p.est='pagado';
   p.fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+  p.metodo=p.metodo||'Efectivo';
+  aplicarCobroEnCuenta(p);
   const concepto=`${p.tipo} ${p.periodo||''}`.trim();
-  crearReciboYEnviar(p.a,concepto,p.monto,'Efectivo',true);
+  crearReciboYEnviar(p.a,concepto,p.monto,p.metodo,true);
+  syncEstadoPagoAlumno(p.a);
   saveDB();renderPagos();renderEst();renderRecibos();
   toast(`Pago de ${p.a} registrado · recibo enviado al tutor`,'✓');
 }
@@ -2153,8 +2300,8 @@ function renderPagos(){
     <td style="font-weight:800">${p.monto}</td>
     <td style="font-size:11.5px;color:var(--g600);max-width:120px">${nombreCuenta(p.cuenta)}</td>
     <td style="font-size:12px;color:var(--g500)">${p.fecha}</td>
-    <td>${p.est==='pagado'?'<span class="badge bg">✓ Pagado</span>':p.est==='vencido'?'<span class="badge br">⚠ Vencido</span>':'<span class="badge by">⏰ Pendiente</span>'}</td>
-    <td><div style="display:flex;gap:5px;flex-wrap:wrap">${p.est!=='pagado'?`<button class="btn bs btn-xs" onclick="cobrarPago('${p.id}')">Cobrar</button>`:''}<button class="btn bw btn-xs" onclick="generarReciboDesdePago('${p.id}')">Recibo</button></div></td></tr>`).join('');
+    <td>${badgeEstadoPago(p.est)}</td>
+    <td><div style="display:flex;gap:5px;flex-wrap:wrap">${p.est!=='pagado'&&p.est!=='cancelado'?`<button class="btn bs btn-xs" onclick="cobrarPago('${p.id}')">Cobrar</button>`:''}<button class="btn bw btn-xs" onclick="abrirEditarPago('${p.id}')">Modificar</button>${p.est==='pagado'?`<button class="btn bw btn-xs" onclick="generarReciboDesdePago('${p.id}')">Recibo</button>`:''}</div></td></tr>`).join('');
   renderCuentasGrid();
   renderTransferenciasList();
 }
