@@ -791,18 +791,18 @@ Gymnastica</textarea></div>
 
     <!-- ─ CALENDARIO ─ -->
     <div class="screen" id="calendarioScreen">
-      <div class="ph"><div><div class="ph-title">Calendario de Clases</div><div class="ph-sub" id="calSub">Semana del 27 de mayo al 1 de junio, 2026</div></div><div class="ph-acts"><button class="btn bw" onclick="calSemana(-1)">◀ Anterior</button><button class="btn bw" onclick="calSemana(1)">Siguiente ▶</button></div></div>
+      <div class="ph"><div><div class="ph-title">Calendario de Clases</div><div class="ph-sub" id="calSub">Semana del 27 de mayo al 1 de junio, 2026</div></div><div class="ph-acts"><button class="btn bw" onclick="calSemana(-1)">◀ Anterior</button><button class="btn bw" onclick="calSemana(1)">Siguiente ▶</button><button class="btn bp" onclick="abrirAgendarClase()">+ Agregar clase</button></div></div>
       <div class="cal-tabs">
         <button type="button" class="btn bw cal-tab on" data-cal-tab="grupal" onclick="setCalTab('grupal')">📅 Clases grupales</button>
         <button type="button" class="btn bw cal-tab" data-cal-tab="pers" onclick="setCalTab('pers')">⭐ Clases personalizadas</button>
       </div>
       <div id="calPanelGrupal">
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px" id="calendarioGrid"></div>
-        <div class="card"><div class="card-h"><div class="card-t" id="calDetalleTitulo">Selecciona una clase para ver los alumnos</div></div><div class="card-b" id="calDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">📅</div><div>Haz clic en una clase del calendario</div></div></div></div>
+        <div class="card"><div class="card-h"><div class="card-t" id="calDetalleTitulo">Selecciona una clase para ver los alumnos</div><button class="btn bp btn-sm" type="button" onclick="abrirAgendarClase('grupal')">+ Agregar clase</button></div><div class="card-b" id="calDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">📅</div><div>Haz clic en una clase del calendario</div></div></div></div>
       </div>
       <div id="calPanelPers" style="display:none">
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px" id="calendarioPersGrid"></div>
-        <div class="card"><div class="card-h"><div class="card-t" id="calPersDetalleTitulo">Selecciona una clase personalizada</div><button class="btn bp btn-sm" onclick="openMdl('agendarPers')">+ Agendar clase</button></div><div class="card-b" id="calPersDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">⭐</div><div>Haz clic en una sesión del calendario</div></div></div></div>
+        <div class="card"><div class="card-h"><div class="card-t" id="calPersDetalleTitulo">Selecciona una clase personalizada</div><button class="btn bp btn-sm" type="button" onclick="abrirAgendarClase('pers')">+ Agregar clase</button></div><div class="card-b" id="calPersDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">⭐</div><div>Haz clic en una sesión del calendario</div></div></div></div>
       </div>
     </div>
 
@@ -1310,15 +1310,23 @@ Gymnastica</textarea></div>
   </div>
 </div>
 
-<!-- CLASE PERSONALIZADA -->
-<div class="mbg" id="mdl-agendarPers" onclick="if(event.target.classList.contains('mbg'))closeMdl('agendarPers')">
+<!-- AGREGAR CLASE (grupal o personalizada) -->
+<div class="mbg" id="mdl-agendarClase" onclick="if(event.target.classList.contains('mbg'))closeMdl('agendarClase')">
   <div class="mdl">
-    <div class="mdl-t">Agendar clase personalizada</div>
-    <div class="mdl-s">Sesión 1:1 en el calendario</div>
-    <div class="fg"><label class="flb">Alumno</label><select class="finp" id="agendarPersAlumno"></select></div>
-    <div class="g2"><div class="fg"><label class="flb">Día</label><select class="finp" id="agendarPersDia"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarPersHora" placeholder="10:00 AM"></div></div>
-    <div class="g2"><div class="fg"><label class="flb">Entrenador</label><input class="finp" id="agendarPersEnt" placeholder="Nombre del entrenador"></div><div class="fg"><label class="flb">Duración</label><input class="finp" id="agendarPersDur" placeholder="60 min"></div></div>
-    <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('agendarPers')">Cancelar</button><button type="button" class="btn bp" onclick="guardarClasePersonalizada()">Agendar</button></div>
+    <div class="mdl-t">Agregar clase</div>
+    <div class="mdl-s" id="agendarClaseSub">Programa una clase grupal o personalizada en el calendario</div>
+    <div class="fg"><label class="flb">Tipo de clase</label><select class="finp" id="agendarClaseTipo" onchange="toggleAgendarClaseTipo()"><option value="grupal">📅 Clase grupal</option><option value="pers">⭐ Clase personalizada</option></select></div>
+    <div id="agendarClaseGrupalFields">
+      <div class="fg"><label class="flb">Nombre de la clase</label><input class="finp" id="agendarGrupalNombre" placeholder="Ej. Gimnasia Artística, Acrobacia..."></div>
+      <div class="g2"><div class="fg"><label class="flb">Día</label><select class="finp" id="agendarGrupalDia"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarGrupalHora" placeholder="4:00pm"></div></div>
+      <div class="fg"><label class="flb">Cupo máximo</label><input class="finp" id="agendarGrupalCupo" type="number" min="1" max="50" placeholder="20" value="20"></div>
+    </div>
+    <div id="agendarClasePersFields" style="display:none">
+      <div class="fg"><label class="flb">Alumno</label><select class="finp" id="agendarPersAlumno"></select></div>
+      <div class="g2"><div class="fg"><label class="flb">Día</label><select class="finp" id="agendarPersDia"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarPersHora" placeholder="10:00 AM"></div></div>
+      <div class="g2"><div class="fg"><label class="flb">Entrenador</label><input class="finp" id="agendarPersEnt" placeholder="Nombre del entrenador"></div><div class="fg"><label class="flb">Duración</label><input class="finp" id="agendarPersDur" placeholder="60 min" value="60 min"></div></div>
+    </div>
+    <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('agendarClase')">Cancelar</button><button type="button" class="btn bp" onclick="guardarClaseCalendario()">Agendar</button></div>
   </div>
 </div>
 
@@ -2748,7 +2756,7 @@ function openMdl(id){
         lf.value=meses[d.getMonth()]+' '+d.getFullYear();
       }
     }
-    if(id==='agendarPers')llenarSelectAlumnos('agendarPersAlumno',true);
+    if(id==='agendarClase')prepararModalAgendarClase();
     if(id==='inscribirComp'){
       llenarSelectAlumnos('inscribirCompAlumno',true);
       const sub=document.getElementById('inscribirCompSub');
@@ -3852,7 +3860,7 @@ function verClasePers(alumno,hora,entrenador,duracion,c){
       </div>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn bw btn-xs" onclick="contactarTutorWpt('${String(est.tel).replace(/'/g,"\\'")}','${String(est.n).replace(/'/g,"\\'")}')">💬 Contactar</button>
-        <button class="btn bw btn-xs" onclick="openMdl('agendarPers');document.getElementById('agendarPersAlumno').value='${String(est.n).replace(/'/g,"\\'")}'">Editar</button>
+        <button class="btn bw btn-xs" onclick="abrirAgendarClase('pers','${String(est.n).replace(/'/g,"\\'")}')">Editar</button>
       </div>
     </div>`:'<div style="font-size:12.5px;color:var(--g500)">Alumno no encontrado en el registro activo.</div>'}`;
 }
@@ -4520,6 +4528,63 @@ function guardarInscripcionComp(){
   toast(`${alumno} inscrito en ${comp.n}`,'🏆');
 }
 
+const CAL_DIA_MAP={Lunes:0,Martes:1,Miércoles:2,Jueves:3,Viernes:4,Sábado:5};
+const CAL_DIA_ABR=['Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function colorParaClaseGrupal(nombre){
+  const n=String(nombre||'').toLowerCase();
+  if(n.includes('artística')||n.includes('artistica'))return '#3b82f6';
+  if(n.includes('rítmica')||n.includes('ritmica'))return '#a855f7';
+  if(n.includes('acro'))return '#f97316';
+  if(n.includes('pre'))return '#22c55e';
+  if(n.includes('parkour'))return '#6366f1';
+  return ['#3b82f6','#a855f7','#22c55e','#f97316','#06b6d4','#ec4899'][Math.abs(n.length)%6];
+}
+
+function toggleAgendarClaseTipo(){
+  const tipo=document.getElementById('agendarClaseTipo')?.value||'grupal';
+  const grupal=document.getElementById('agendarClaseGrupalFields');
+  const pers=document.getElementById('agendarClasePersFields');
+  const sub=document.getElementById('agendarClaseSub');
+  if(grupal)grupal.style.display=tipo==='grupal'?'block':'none';
+  if(pers)pers.style.display=tipo==='pers'?'block':'none';
+  if(sub)sub.textContent=tipo==='pers'?'Sesión 1:1 en el calendario':'Clase grupal con cupo para varios alumnos';
+}
+
+function prepararModalAgendarClase(){
+  llenarSelectAlumnos('agendarPersAlumno',true);
+  toggleAgendarClaseTipo();
+}
+
+function abrirAgendarClase(tipo,alumnoPrefill){
+  const t=tipo||calTabActivo||'grupal';
+  const sel=document.getElementById('agendarClaseTipo');
+  if(sel)sel.value=t==='pers'?'pers':'grupal';
+  prepararModalAgendarClase();
+  if(alumnoPrefill){
+    const a=document.getElementById('agendarPersAlumno');
+    if(a)a.value=alumnoPrefill;
+  }
+  openMdl('agendarClase');
+}
+
+function guardarClaseGrupal(){
+  const nombre=document.getElementById('agendarGrupalNombre')?.value?.trim();
+  const dia=document.getElementById('agendarGrupalDia')?.value;
+  const hora=document.getElementById('agendarGrupalHora')?.value?.trim();
+  const max=parseInt(document.getElementById('agendarGrupalCupo')?.value,10)||20;
+  if(!nombre||!hora){toast('Completa nombre y hora de la clase','⚠️');return;}
+  const idx=CAL_DIA_MAP[dia]??0;
+  ensureCalendarioData();
+  if(!DB.calendarioGrupal[idx])DB.calendarioGrupal[idx]={dia:CAL_DIA_ABR[idx]||'Lun',fecha:'',clases:[]};
+  const live=alumnosEnClaseCal(nombre).length;
+  DB.calendarioGrupal[idx].clases.push({
+    hora,nombre,alumnos:live,max,c:colorParaClaseGrupal(nombre)
+  });
+  saveDB();closeMdl('agendarClase');setCalTab('grupal');renderCalendario();
+  toast('Clase grupal agregada al calendario','📅');
+}
+
 function guardarClasePersonalizada(){
   const alumno=document.getElementById('agendarPersAlumno')?.value;
   const dia=document.getElementById('agendarPersDia')?.value;
@@ -4529,13 +4594,18 @@ function guardarClasePersonalizada(){
   const c=est?.c||'#a855f7';
   const ent=document.getElementById('agendarPersEnt')?.value?.trim()||'Entrenador';
   const dur=document.getElementById('agendarPersDur')?.value?.trim()||'60 min';
-  const diaMap={Lunes:0,Martes:1,Miércoles:2,Jueves:3,Viernes:4,Sábado:5};
-  const idx=diaMap[dia]??0;
+  const idx=CAL_DIA_MAP[dia]??0;
   ensureCalendarioData();
-  if(!DB.clasesPers[idx])DB.clasesPers[idx]={dia:dia||'Lunes',fecha:'',clases:[]};
+  if(!DB.clasesPers[idx])DB.clasesPers[idx]={dia:CAL_DIA_ABR[idx]||'Lun',fecha:'',clases:[]};
   DB.clasesPers[idx].clases.push({alumno,hora,entrenador:ent,duracion:dur,c});
-  saveDB();closeMdl('agendarPers');renderCalendario();
+  saveDB();closeMdl('agendarClase');setCalTab('pers');renderCalendario();
   toast('Clase personalizada agendada','📅');
+}
+
+function guardarClaseCalendario(){
+  const tipo=document.getElementById('agendarClaseTipo')?.value||'grupal';
+  if(tipo==='pers')guardarClasePersonalizada();
+  else guardarClaseGrupal();
 }
 
 function solicitarInfoPromoPadre(){
