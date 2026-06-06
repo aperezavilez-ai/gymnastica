@@ -3,9 +3,9 @@
  * Requiere que index.html haya definido DB, toast, saveDB, renderAll, etc.
  */
 (function (g) {
-  if (typeof g.exportarCSV === 'function') return;
+  if (typeof g.exportarExcel === 'function') return;
 
-  g.exportarCSV = function (nombre, filas) {
+  if (typeof g.exportarCSV !== 'function') g.exportarCSV = function (nombre, filas) {
     if (!filas.length) {
       g.toast('No hay datos para exportar', '⚠️');
       return;
@@ -23,6 +23,27 @@
     a.click();
     URL.revokeObjectURL(a.href);
     g.toast('Archivo descargado: ' + nombre, '📊');
+  };
+
+  g.exportarExcel = function (nombre, filas) {
+    if (!filas.length) {
+      g.toast('No hay datos para exportar', '⚠️');
+      return;
+    }
+    const headers = Object.keys(filas[0]);
+    const esc = (v) => {
+      const s = String(v ?? '').replace(/"/g, '""');
+      return s.includes(',') || s.includes('"') || s.includes('\n') || s.includes(';') ? `"${s}"` : s;
+    };
+    const lines = [headers.join(',')].concat(filas.map((r) => headers.map((h) => esc(r[h])).join(',')));
+    const fname = /\.xls(x)?$/i.test(nombre) ? nombre : nombre.replace(/\.csv$/i, '') + '.xls';
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    g.toast('Excel descargado: ' + fname, '📊');
   };
 
   g.exportarEstudiantes = function () {
