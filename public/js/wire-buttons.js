@@ -194,7 +194,7 @@
       g.DB.config = {
         nombreGym: 'GYMNASTICA',
         telefono: '+52 33 1234 5678',
-        email: 'recepcion@gymnastica.app',
+        email: 'recepcion@gymnastica.mx',
         direccion: 'Guadalajara, Jalisco',
       };
   };

@@ -764,7 +764,7 @@ Gymnastica</textarea></div>
         <div class="padre-contact">
           <strong>¿Necesitas ayuda?</strong>
           Recepción Gymnastica · Lun–Vie 9:00–19:00 · Sáb 9:00–14:00<br>
-          📞 +52 33 1234 5678 · 💬 WhatsApp recepción · ✉️ recepcion@gymnastica.app
+          📞 +52 33 1234 5678 · 💬 WhatsApp recepción · ✉️ recepcion@gymnastica.mx
         </div>
       </div>
     </div>
@@ -1344,7 +1344,7 @@ Gymnastica</textarea></div>
     <div class="mdl-s">Crea acceso al sistema y asigna permisos por módulo</div>
     <div class="fg"><label class="flb">Nombre completo</label><input class="finp" id="personalNombre" placeholder="Ej. Ana García"></div>
     <div class="g2">
-      <div class="fg"><label class="flb">Correo de acceso</label><input class="finp" id="personalEmail" type="email" placeholder="nombre@gymnastica.app"></div>
+      <div class="fg"><label class="flb">Correo de acceso</label><input class="finp" id="personalEmail" type="email" placeholder="nombre@gymnastica.mx"></div>
       <div class="fg"><label class="flb">Contraseña inicial</label><input class="finp" id="personalPass" type="password" placeholder="Mín. 6 caracteres"></div>
     </div>
     <div class="g2">
@@ -1432,7 +1432,7 @@ const DB={
   transferencias:[],
   checadas:[],
   empleados:[
-    {n:'Ana García',rol:'Entrenadora Principal',base:350,asis:150,des:125,c:'#3b82f6',tel:'+52 33 1111 2222',email:'ana.garcia@gymnastica.app',checId:'emp_001',pinChecador:'2001'},
+    {n:'Ana García',rol:'Entrenadora Principal',base:350,asis:150,des:125,c:'#3b82f6',tel:'+52 33 1111 2222',email:'ana.garcia@gymnastica.mx',checId:'emp_001',pinChecador:'2001'},
   ],
   competencias:[
     {n:'Copa Regional Jalisco 2026',fecha:'15 Jul 2026',lugar:'PIDE Guadalajara',cupo:24,ins:0,precio:'$350',ico:'🏆',color:'var(--b500)',cats:'Sub-8, Sub-10, Sub-12'},
@@ -1483,6 +1483,9 @@ const LOGIN_EMAIL_ALIASES={
   'admin@gympro.com':'alfonsoavilery@icloud.com',
   'admin@gymnastica.com':'alfonsoavilery@icloud.com',
   'admin@gymnastica.app':'alfonsoavilery@icloud.com',
+  'admin@gymnastica.mx':'alfonsoavilery@icloud.com',
+  'operador@gymnastica.app':'operador@gymnastica.mx',
+  'operador@gymnastica.com':'operador@gymnastica.mx',
 };
 
 const PERMISOS_ADMIN_COMPLETO=['dashboard','registro','registroMedico','estudiantes','pagos','checador','asistencia','recibos','calendario','reportes','nomina','inventario','logros','competencias','promociones','notificaciones'];
@@ -1498,7 +1501,7 @@ const USUARIOS_DEFAULT={
     nombre:'O. Ebaez',iniciales:'OE',color:'var(--b600)',
     permisos:PERMISOS_ADMIN_COMPLETO
   },
-  'operador@gymnastica.app':{
+  'operador@gymnastica.mx':{
     pass:'Operador2026@',role:'operador',
     nombre:'Operador Gymnastica',iniciales:'OG',color:'var(--p600)',
     puesto:'Operador',
@@ -1517,7 +1520,7 @@ const USUARIOS={
     nombre:'O. Ebaez',iniciales:'OE',color:'var(--b600)',
     permisos:PERMISOS_ADMIN_COMPLETO
   },
-  'operador@gymnastica.app':{
+  'operador@gymnastica.mx':{
     pass:'Operador2026@',role:'operador',
     nombre:'Operador Gymnastica',iniciales:'OG',color:'var(--p600)',
     puesto:'Operador',
@@ -1527,7 +1530,7 @@ const USUARIOS={
 
 // ═══════ STATE ═══════
 const APP_VERSION='2026.06.05-prod';
-const DATA_SEED_VERSION='2026.06.05.prod';
+const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
 let estBusqueda='';
@@ -1697,7 +1700,7 @@ function selRole(el,role){
   ensureUsuariosCredenciales();
   const hints={
     admin:{email:'alfonsoavilery@icloud.com',pass:'Calurore1028@'},
-    operador:{email:'operador@gymnastica.app',pass:'Operador2026@'},
+    operador:{email:'operador@gymnastica.mx',pass:'Operador2026@'},
     padre:{email:'',pass:''},
   };
   const h=hints[role];
@@ -1711,7 +1714,7 @@ function quickLogin(role){
   // Pone credenciales demo según rol
   const demos={
     admin:{email:'alfonsoavilery@icloud.com',pass:'Calurore1028@'},
-    operador:{email:'operador@gymnastica.app',pass:'Operador2026@'},
+    operador:{email:'operador@gymnastica.mx',pass:'Operador2026@'},
   };
   const d=demos[role]||demos.admin;
   document.getElementById('loginEmail').value=d.email;
