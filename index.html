@@ -520,7 +520,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
   <div class="tb-left">
     <div class="user-btn" onclick="showLogin()" title="Cerrar sesión">
       <div class="u-av" id="uAv" style="background:var(--b600)">LA</div>
-      <span class="u-nm" id="uNm">Luis Alfonso</span>
+      <span class="u-nm" id="uNm">Alfonso</span>
     </div>
     <div class="role-pill" id="rolePill">Administrador</div>
     <div class="notif-btn" onclick="abrirPanelNotificaciones()" title="Notificaciones">🔔<div class="notif-dot" id="notifDot"></div></div>
@@ -1416,27 +1416,13 @@ Gymnastica</textarea></div>
 // ═══════ DATA ═══════
 const DB={
   estudiantes:[
-    {n:'Sofía Ramírez',edad:10,clase:'Gimnasia Artística',horario:'Lun/Mié 4pm',monto:'$850',est:'pagado',tutor:'Ana Ramírez',tel:'+52 33 1111 2222',email:'ana.ramirez@gmail.com',c:'#3b82f6'},
-    {n:'Valentina Torres',edad:8,clase:'Gimnasia Rítmica',horario:'Mar/Jue 5pm',monto:'$750',est:'pagado',tutor:'Carlos Torres',tel:'+52 33 2222 3333',email:'carlos.torres@gmail.com',c:'#a855f7'},
-    {n:'Diego Hernández',edad:12,clase:'Acrobacia',horario:'Sáb 10am',monto:'$850',est:'vencido',tutor:'María Hernández',tel:'+52 33 3333 4444',email:'maria.hernandez@gmail.com',c:'#ef4444'},
-    {n:'Camila Vega',edad:9,clase:'Gimnasia Artística',horario:'Lun/Mié 4pm',monto:'$850',est:'pagado',tutor:'José Vega',tel:'+52 33 4444 5555',email:'jose.vega@gmail.com',c:'#22c55e'},
-    {n:'Isabella Cruz',edad:7,clase:'Pre-escolar',horario:'Sáb 9am',monto:'$600',est:'pendiente',tutor:'Laura Cruz',tel:'+52 33 5555 6666',email:'laura.cruz@gmail.com',c:'#f97316'},
-    {n:'Mariana López',edad:11,clase:'Gimnasia Rítmica',horario:'Mar/Jue 5pm',monto:'$750',est:'pagado',tutor:'Pedro López',tel:'+52 33 6666 7777',email:'pedro.lopez@gmail.com',c:'#06b6d4'},
-    {n:'Rodrigo Torres',edad:10,clase:'Acrobacia',horario:'Sáb 10am',monto:'$850',est:'pendiente',tutor:'Carlos Torres',tel:'+52 33 2222 3333',email:'carlos.torres@gmail.com',c:'#6366f1'},
+    {n:'Sofía Ramírez',edad:10,clase:'Gimnasia Artística',horario:'Lun/Mié 4pm',monto:'$850',est:'pagado',tutor:'Ana Ramírez',tel:'+52 33 1111 2222',email:'ana.ramirez@gmail.com',c:'#3b82f6',activo:true,checId:'est_001',pinChecador:'1001'},
   ],
   recibos:[
     {folio:'GYM-001',alumno:'Sofía Ramírez',concepto:'Mensualidad Jun 2026',monto:'$850',fecha:'01/Jun/2026',metodo:'Tarjeta',enviado:true,enviadoEmail:true,enviadoWhatsapp:true},
-    {folio:'GYM-002',alumno:'Valentina Torres',concepto:'Clase semanal Sem 22',monto:'$200',fecha:'01/Jun/2026',metodo:'Efectivo',enviado:true,enviadoEmail:true,enviadoWhatsapp:true},
-    {folio:'GYM-003',alumno:'Camila Vega',concepto:'Inscripción Copa Regional',monto:'$300',fecha:'30/May/2026',metodo:'Transferencia',enviado:true,enviadoEmail:true,enviadoWhatsapp:true},
-    {folio:'GYM-004',alumno:'Mariana López',concepto:'Mensualidad Jun 2026',monto:'$750',fecha:'01/Jun/2026',metodo:'Transferencia',enviado:false,enviadoEmail:false,enviadoWhatsapp:false},
-    {folio:'GYM-005',alumno:'Isabella Cruz',concepto:'Mensualidad Jun 2026',monto:'$600',fecha:'01/Jun/2026',metodo:'Tarjeta',enviado:false,enviadoEmail:false,enviadoWhatsapp:false},
   ],
   pagos:[
     {id:'p1',a:'Sofía Ramírez',tipo:'Mensualidad',clase:'Artística',periodo:'Jun 2026',monto:'$850',fecha:'01/Jun/2026',est:'pagado',cuenta:'principal'},
-    {id:'p2',a:'Valentina Torres',tipo:'Clase semanal',clase:'Rítmica',periodo:'Sem 22',monto:'$200',fecha:'01/Jun/2026',est:'pagado',cuenta:'principal'},
-    {id:'p3',a:'Diego Hernández',tipo:'Mensualidad',clase:'Acrobacia',periodo:'Jun 2026',monto:'$850',fecha:'—',est:'vencido',cuenta:'principal'},
-    {id:'p4',a:'Camila Vega',tipo:'Competencia',clase:'Copa Regional',periodo:'Jul 2026',monto:'$300',fecha:'30/May/2026',est:'pagado',cuenta:'efectivo'},
-    {id:'p5',a:'Isabella Cruz',tipo:'Mensualidad',clase:'Pre-escolar',periodo:'Jun 2026',monto:'$600',fecha:'—',est:'pendiente',cuenta:'principal'},
   ],
   cuentas:[
     {id:'principal',nombre:'Cuenta principal BBVA',banco:'BBVA',clabe:'012 345 678901234567',saldo:18500},
@@ -1446,15 +1432,11 @@ const DB={
   transferencias:[],
   checadas:[],
   empleados:[
-    {n:'Ana García',rol:'Entrenadora Principal',base:350,asis:150,des:125,c:'#3b82f6',tel:'+52 33 1111 2222',email:'ana.garcia@gymnastica.app'},
-    {n:'Carlos Mendoza',rol:'Entrenador Artística',base:350,asis:150,des:125,c:'#a855f7',tel:'+52 33 2222 3333',email:'carlos.mendoza@gymnastica.app'},
-    {n:'Paola Sánchez',rol:'Entrenadora Rítmica',base:350,asis:150,des:125,c:'#22c55e',tel:'+52 33 3333 4444',email:'paola.sanchez@gymnastica.app'},
-    {n:'Roberto Jiménez',rol:'Entrenador Acrobacia',base:350,asis:150,des:125,c:'#f97316',tel:'+52 33 4444 5555',email:'roberto.jimenez@gymnastica.app'},
-    {n:'Sofía Delgado',rol:'Recepcionista',base:350,asis:150,des:125,c:'#ec4899',tel:'+52 33 5555 6666',email:'sofia.delgado@gymnastica.app'},
+    {n:'Ana García',rol:'Entrenadora Principal',base:350,asis:150,des:125,c:'#3b82f6',tel:'+52 33 1111 2222',email:'ana.garcia@gymnastica.app',checId:'emp_001',pinChecador:'2001'},
   ],
   competencias:[
-    {n:'Copa Regional Jalisco 2026',fecha:'15 Jul 2026',lugar:'PIDE Guadalajara',cupo:24,ins:18,precio:'$350',ico:'🏆',color:'var(--b500)',cats:'Sub-8, Sub-10, Sub-12'},
-    {n:'Torneo Interno Gymnastica',fecha:'28 Jun 2026',lugar:'Nuestras instalaciones',cupo:30,ins:25,precio:'Gratis',ico:'GY',color:'var(--gr600)',cats:'Todas las categorías'},
+    {n:'Copa Regional Jalisco 2026',fecha:'15 Jul 2026',lugar:'PIDE Guadalajara',cupo:24,ins:0,precio:'$350',ico:'🏆',color:'var(--b500)',cats:'Sub-8, Sub-10, Sub-12'},
+    {n:'Torneo Interno Gymnastica',fecha:'28 Jun 2026',lugar:'Nuestras instalaciones',cupo:30,ins:0,precio:'Gratis',ico:'GY',color:'var(--gr600)',cats:'Todas las categorías'},
     {n:'Campeonato Nacional Juvenil',fecha:'20 Sep 2026',lugar:'CDMX — Palacio de Deportes',cupo:15,ins:6,precio:'$500',ico:'🥇',color:'var(--p500)',cats:'Sub-12, Sub-14'},
   ],
   promos:[
@@ -1464,10 +1446,7 @@ const DB={
     {id:'prom-uniformes',n:'Uniformes y material',desc:'Paquete completo de uniformes y material deportivo que cada alumno necesita en el gimnasio.',disc:'Desde $1,850',vig:'Todo el ciclo 2026',ico:'👕',tipo:'Paquete por alumno',color:'#6366f1',incluye:['Leotardo de entrenamiento (1)','Mallas o shorts de práctica (1)','Zapatillas según disciplina (artística / rítmica)','Cintas, aro o pelota según clase','Mochila institucional GYMNASTICA','Toalla deportiva bordada','Identificación con nombre del alumno']},
     {id:'prom-summer',n:'Summer Camp',desc:'Campamento de verano intensivo: gimnasia, diversión y convivencia en instalaciones Gymnastica.',disc:'$2,500',vig:'Julio 2026 · cupo limitado',ico:'☀️',tipo:'Campamento de verano',color:'#f59e0b',incluye:['5 días de entrenamiento (lunes a viernes)','Horario 9:00 – 14:00','Almuerzo diario incluido','Camiseta oficial del campamento','Material deportivo de la semana','Actividades recreativas y dinámica grupal','Diploma de participación','Seguro de accidentes durante el evento']},
   ],
-  registrosMedicos:[
-    {id:'MED-001',alumno:'Diego Hernández',fecha:'28/May/2026',tipoRegistro:'ficha',sangre:'O+',alergias:'Polvo y ácaros (leve)',medicamentos:'Salbutamol inhalador PRN',condiciones:'Asma leve controlada',emergencia:'María Hernández',emergenciaTel:'+52 33 3333 4444',restricciones:'Evitar ejercicio en días de alerta atmosférica alta',observaciones:'Padre informado verbalmente.',notaPadres:'Estimado padre de Diego:\n\nRegistramos en ficha médica: asma leve y alergia a polvo. En días de mala calidad del aire evitaremos rutinas de alto impacto.\n\nMantenga el inhalador disponible. Cualquier cambio, avísenos.\n\nGymnastica',gravedad:'media',notificado:{whatsapp:true,email:true,fecha:'28/May/2026'},por:'Recepción'},
-    {id:'MED-002',alumno:'Valentina Torres',fecha:'15/May/2026',tipoRegistro:'ficha',sangre:'A+',alergias:'Ninguna conocida',medicamentos:'—',condiciones:'Ninguna',emergencia:'Carlos Torres',emergenciaTel:'+52 33 2222 3333',restricciones:'—',observaciones:'',notaPadres:'Estimado padre de Valentina:\n\nFicha médica registrada sin alergias ni condiciones. Gracias por completar el cuestionario.\n\nGymnastica',gravedad:'baja',notificado:{whatsapp:true,email:true,fecha:'15/May/2026'},por:'Recepción'},
-  ],
+  registrosMedicos:[],
   inventario:[
     {id:'INV-001',art:'Colchoneta olímpica',cat:'Suelo',cant:4,est:'bueno',compra:'Ene 2024',proximo:'Ene 2027',costoUnitario:3200},
     {id:'INV-002',art:'Barra de equilibrio',cat:'Aparatos',cant:2,est:'bueno',compra:'Mar 2023',proximo:'Mar 2026',costoUnitario:18500},
@@ -1488,99 +1467,67 @@ const DB={
   inventarioMensual:[],
 };
 
+const DB_SEED_SNAPSHOT={
+  estudiantes:JSON.parse(JSON.stringify(DB.estudiantes)),
+  empleados:JSON.parse(JSON.stringify(DB.empleados)),
+  pagos:JSON.parse(JSON.stringify(DB.pagos)),
+  recibos:JSON.parse(JSON.stringify(DB.recibos)),
+  registrosMedicos:JSON.parse(JSON.stringify(DB.registrosMedicos)),
+  checadas:[],
+};
+
 // ═══════ USUARIOS POR CORREO ═══════
 // Cada padre tiene acceso SOLO a sus propios hijos.
 // Admin y Operador no tienen acceso al portal de padres.
 const LOGIN_EMAIL_ALIASES={
-  'admin@gympro.com':'admin@gymnastica.app',
-  'admin@gymnastica.com':'admin@gymnastica.app',
-  'operador@gymnastica.com':'operador@gymnastica.app',
+  'admin@gympro.com':'alfonsoavilery@icloud.com',
+  'admin@gymnastica.com':'alfonsoavilery@icloud.com',
+  'admin@gymnastica.app':'alfonsoavilery@icloud.com',
 };
 
+const PERMISOS_ADMIN_COMPLETO=['dashboard','registro','registroMedico','estudiantes','pagos','checador','asistencia','recibos','calendario','reportes','nomina','inventario','logros','competencias','promociones','notificaciones'];
+
 const USUARIOS_DEFAULT={
-  'admin@gymnastica.app':{
-    pass:'Admin2024',role:'admin',
-    nombre:'Luis Alfonso Pérez',iniciales:'LA',color:'var(--b600)'
+  'alfonsoavilery@icloud.com':{
+    pass:'Calurore1028@',role:'admin',
+    nombre:'Alfonso Avilery',iniciales:'AA',color:'var(--b600)',
+    permisos:PERMISOS_ADMIN_COMPLETO
+  },
+  'oebaez.47@gmail.com':{
+    pass:'Tachuela.47',role:'admin',
+    nombre:'O. Ebaez',iniciales:'OE',color:'var(--b600)',
+    permisos:PERMISOS_ADMIN_COMPLETO
   },
   'operador@gymnastica.app':{
-    pass:'Op2024',role:'operador',
-    nombre:'María González',iniciales:'MG',color:'var(--p600)'
-  },
-  'carlos.torres@gmail.com':{
-    pass:'Padre2024',role:'padre',
-    nombre:'Carlos Torres',iniciales:'CT',color:'var(--gr600)',
-    hijos:[
-      {n:'Valentina Torres',edad:8,clase:'Gimnasia Rítmica',horario:'Mar/Jue 5pm',monto:750,est:'pagado',proxVenc:'1 Jul 2026',c:'#a855f7',historial:[]},
-      {n:'Rodrigo Torres',edad:10,clase:'Acrobacia',horario:'Sáb 10am',monto:850,est:'pendiente',proxVenc:'5 Jun 2026',c:'#3b82f6',historial:[]},
-    ]
-  },
-  'ana.ramirez@gmail.com':{
-    pass:'Padre2024',role:'padre',
-    nombre:'Ana Ramírez',iniciales:'AR',color:'var(--o600)',
-    hijos:[{n:'Sofía Ramírez',edad:10,clase:'Gimnasia Artística',horario:'Lun/Mié 4pm',monto:850,est:'pagado',proxVenc:'1 Jul 2026',c:'#3b82f6',historial:[]}]
-  },
-  'maria.hernandez@gmail.com':{
-    pass:'Padre2024',role:'padre',
-    nombre:'María Hernández',iniciales:'MH',color:'var(--r600)',
-    hijos:[{n:'Diego Hernández',edad:12,clase:'Acrobacia',horario:'Sáb 10am',monto:850,est:'vencido',proxVenc:'Venció el 26 May 2026',c:'#ef4444',historial:[]}]
+    pass:'Operador2026@',role:'operador',
+    nombre:'Operador Gymnastica',iniciales:'OG',color:'var(--p600)',
+    puesto:'Operador',
+    permisos:['dashboard','registro','registroMedico','estudiantes','pagos','checador','asistencia','competencias']
   },
 };
 
 const USUARIOS={
-  // ADMINISTRADOR
-  'admin@gymnastica.app':{
-    pass:'Admin2024',role:'admin',
-    nombre:'Luis Alfonso Pérez',iniciales:'LA',color:'var(--b600)'
+  'alfonsoavilery@icloud.com':{
+    pass:'Calurore1028@',role:'admin',
+    nombre:'Alfonso Avilery',iniciales:'AA',color:'var(--b600)',
+    permisos:PERMISOS_ADMIN_COMPLETO
   },
-  // OPERADOR
+  'oebaez.47@gmail.com':{
+    pass:'Tachuela.47',role:'admin',
+    nombre:'O. Ebaez',iniciales:'OE',color:'var(--b600)',
+    permisos:PERMISOS_ADMIN_COMPLETO
+  },
   'operador@gymnastica.app':{
-    pass:'Op2024',role:'operador',
-    nombre:'María González',iniciales:'MG',color:'var(--p600)'
-  },
-  // PADRES — cada uno ve SOLO a sus propios hijos
-  'carlos.torres@gmail.com':{
-    pass:'Padre2024',role:'padre',
-    nombre:'Carlos Torres',iniciales:'CT',color:'var(--gr600)',
-    hijos:[
-      {n:'Valentina Torres',edad:8,clase:'Gimnasia Rítmica',horario:'Mar/Jue 5pm',monto:750,est:'pagado',proxVenc:'1 Jul 2026',c:'#a855f7',
-       historial:[
-        {tipo:'Mensualidad',periodo:'Jun 2026',monto:750,fecha:'01/Jun/2026',met:'Transferencia'},
-        {tipo:'Clase semanal',periodo:'Sem 20',monto:200,fecha:'15/May/2026',met:'Efectivo'},
-        {tipo:'Mensualidad',periodo:'May 2026',monto:750,fecha:'02/May/2026',met:'Tarjeta'},
-      ]},
-      {n:'Rodrigo Torres',edad:10,clase:'Acrobacia',horario:'Sáb 10am',monto:850,est:'pendiente',proxVenc:'5 Jun 2026',c:'#3b82f6',
-       historial:[
-        {tipo:'Mensualidad',periodo:'May 2026',monto:850,fecha:'03/May/2026',met:'Transferencia'},
-        {tipo:'Clase personalizada',periodo:'28 Abr',monto:350,fecha:'28/Abr/2026',met:'Efectivo'},
-      ]},
-    ]
-  },
-  'ana.ramirez@gmail.com':{
-    pass:'Padre2024',role:'padre',
-    nombre:'Ana Ramírez',iniciales:'AR',color:'var(--o600)',
-    hijos:[
-      {n:'Sofía Ramírez',edad:10,clase:'Gimnasia Artística',horario:'Lun/Mié 4pm',monto:850,est:'pagado',proxVenc:'1 Jul 2026',c:'#3b82f6',
-       historial:[
-        {tipo:'Mensualidad',periodo:'Jun 2026',monto:850,fecha:'01/Jun/2026',met:'Tarjeta'},
-        {tipo:'Mensualidad',periodo:'May 2026',monto:850,fecha:'02/May/2026',met:'Transferencia'},
-      ]},
-    ]
-  },
-  'maria.hernandez@gmail.com':{
-    pass:'Padre2024',role:'padre',
-    nombre:'María Hernández',iniciales:'MH',color:'var(--r600)',
-    hijos:[
-      {n:'Diego Hernández',edad:12,clase:'Acrobacia',horario:'Sáb 10am',monto:850,est:'vencido',proxVenc:'Venció el 26 May 2026',c:'#ef4444',
-       historial:[
-        {tipo:'Mensualidad',periodo:'Abr 2026',monto:850,fecha:'03/Abr/2026',met:'Efectivo'},
-        {tipo:'Clase semanal',periodo:'Sem 14',monto:220,fecha:'01/Abr/2026',met:'Efectivo'},
-      ]},
-    ]
+    pass:'Operador2026@',role:'operador',
+    nombre:'Operador Gymnastica',iniciales:'OG',color:'var(--p600)',
+    puesto:'Operador',
+    permisos:['dashboard','registro','registroMedico','estudiantes','pagos','checador','asistencia','competencias']
   },
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.03-c';
+const APP_VERSION='2026.06.05-prod';
+const DATA_SEED_VERSION='2026.06.05.prod';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
 let estBusqueda='';
@@ -1749,9 +1696,9 @@ function selRole(el,role){
   selectedRole=role;
   ensureUsuariosCredenciales();
   const hints={
-    admin:{email:'admin@gymnastica.app',pass:'Admin2024'},
-    operador:{email:'operador@gymnastica.app',pass:'Op2024'},
-    padre:{email:'carlos.torres@gmail.com',pass:'Padre2024'},
+    admin:{email:'alfonsoavilery@icloud.com',pass:'Calurore1028@'},
+    operador:{email:'operador@gymnastica.app',pass:'Operador2026@'},
+    padre:{email:'',pass:''},
   };
   const h=hints[role];
   const em=document.getElementById('loginEmail');
@@ -1763,9 +1710,8 @@ function selRole(el,role){
 function quickLogin(role){
   // Pone credenciales demo según rol
   const demos={
-    admin:{email:'admin@gymnastica.app',pass:'Admin2024'},
-    operador:{email:'operador@gymnastica.app',pass:'Op2024'},
-    padre:{email:'carlos.torres@gmail.com',pass:'Padre2024'},
+    admin:{email:'alfonsoavilery@icloud.com',pass:'Calurore1028@'},
+    operador:{email:'operador@gymnastica.app',pass:'Operador2026@'},
   };
   const d=demos[role]||demos.admin;
   document.getElementById('loginEmail').value=d.email;
@@ -1807,7 +1753,7 @@ function doLogin(){
 
   // Validar credenciales
   if(!usuario){
-    showLoginError('Correo no registrado. Admin: admin@gymnastica.app');
+    showLoginError('Correo no registrado. Contacta al administrador.');
     return;
   }
   if(!usuario.pass){
@@ -5638,7 +5584,27 @@ function usuariosParaNube(){
   return out;
 }
 
+function applyDataSeedIfNeeded(){
+  const seedKey='gymnastica_seed_version';
+  if(localStorage.getItem(seedKey)===DATA_SEED_VERSION)return;
+  Object.keys(USUARIOS).forEach(k=>delete USUARIOS[k]);
+  Object.assign(USUARIOS,JSON.parse(JSON.stringify(USUARIOS_DEFAULT)));
+  DB.estudiantes=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.estudiantes));
+  DB.empleados=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.empleados));
+  DB.pagos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.pagos));
+  DB.recibos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.recibos));
+  DB.registrosMedicos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.registrosMedicos));
+  DB.checadas=[];
+  localStorage.setItem(seedKey,DATA_SEED_VERSION);
+  try{
+    localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+  }catch(e){}
+  ensureUsuariosCredenciales();
+}
+
 function loadDB(){
+  applyDataSeedIfNeeded();
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
     if(!raw)return;
@@ -5647,6 +5613,7 @@ function loadDB(){
 }
 
 function loadUsers(){
+  applyDataSeedIfNeeded();
   try{
     const raw=localStorage.getItem(USERS_KEY);
     if(!raw){
