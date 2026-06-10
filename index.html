@@ -134,6 +134,23 @@ body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(
 .cal-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
 .cal-tab.on{background:var(--b600)!important;color:#fff!important;border-color:var(--b600)!important;box-shadow:0 1px 3px rgba(37,99,235,.3)}
 .cal-pers-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--p100);color:var(--p700);margin-left:auto}
+.cal-scroll{max-height:calc(100vh - 250px);overflow-y:auto;scroll-behavior:smooth;padding:4px 4px 28px 0}
+.cal-scroll::-webkit-scrollbar{width:8px}
+.cal-scroll::-webkit-scrollbar-thumb{background:var(--g300);border-radius:4px}
+.cal-month{margin-bottom:36px}
+.cal-month-title{font-size:18px;font-weight:800;color:var(--g900);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--g200)}
+.cal-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-day-hd{text-align:center;font-size:11px;font-weight:700;color:var(--g500);padding:6px 2px}
+.cal-day{min-height:108px;background:var(--w);border:1.5px solid var(--g200);border-radius:10px;padding:5px;display:flex;flex-direction:column;gap:3px}
+.cal-day-pad{background:transparent;border:none;min-height:0;pointer-events:none}
+.cal-day-today{background:var(--b50);border-color:var(--b300);box-shadow:0 0 0 2px var(--b100)}
+.cal-day-num{font-size:11px;font-weight:700;color:var(--g700);margin-bottom:2px;flex-shrink:0}
+.cal-day-today .cal-day-num{color:var(--b700)}
+.cal-day-evs{display:flex;flex-direction:column;gap:3px;overflow:hidden;flex:1}
+.cal-ev{font-size:10px;padding:4px 18px 4px 5px;border-radius:6px;border-left:3px solid var(--evc,#3b82f6);cursor:pointer;position:relative;line-height:1.35;word-break:break-word}
+.cal-ev:hover{filter:brightness(.96)}
+.cal-ev-t{font-weight:700}
+.cal-ev .cal-slot-del{top:2px;right:2px;width:16px;height:16px;font-size:9px}
 .chec-pin{font-size:26px;letter-spacing:10px;text-align:center;padding:16px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;margin-bottom:12px;font-weight:800;color:var(--g800);min-height:52px}
 .chec-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px}
 .chec-key{padding:14px 8px;border-radius:10px;border:1.5px solid var(--g200);background:var(--w);font-size:17px;font-weight:700;cursor:pointer;font-family:var(--fn);transition:all .12s}
@@ -803,18 +820,18 @@ Gymnastica</textarea></div>
 
     <!-- ─ CALENDARIO ─ -->
     <div class="screen" id="calendarioScreen">
-      <div class="ph"><div><div class="ph-title">Calendario de Clases</div><div class="ph-sub" id="calSub">Semana del 27 de mayo al 1 de junio, 2026</div></div><div class="ph-acts"><button class="btn bw" onclick="calSemana(-1)">◀ Anterior</button><button class="btn bw" onclick="calSemana(1)">Siguiente ▶</button><button class="btn bp" onclick="abrirAgendarClase()">+ Agregar clase</button></div></div>
+      <div class="ph"><div><div class="ph-title">Calendario de Clases</div><div class="ph-sub" id="calSub">—</div></div><div class="ph-acts"><button class="btn bw" onclick="scrollCalMesActual(null,true)">📍 Ir a hoy</button><button class="btn bp" onclick="abrirAgendarClase()">+ Agregar clase</button></div></div>
       <div class="cal-tabs">
         <button type="button" class="btn bw cal-tab on" data-cal-tab="grupal" onclick="setCalTab('grupal')">📅 Clases grupales</button>
         <button type="button" class="btn bw cal-tab" data-cal-tab="pers" onclick="setCalTab('pers')">⭐ Clases personalizadas</button>
       </div>
       <div id="calPanelGrupal">
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px" id="calendarioGrid"></div>
-        <div class="card"><div class="card-h"><div class="card-t" id="calDetalleTitulo">Selecciona una clase para ver los alumnos</div><button class="btn bp btn-sm" type="button" onclick="abrirAgendarClase('grupal')">+ Agregar clase</button></div><div class="card-b" id="calDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">📅</div><div>Haz clic en una clase del calendario</div></div></div></div>
+        <div class="cal-scroll" id="calendarioGrid"></div>
+        <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t" id="calDetalleTitulo">Selecciona una clase para ver los alumnos</div><button class="btn bp btn-sm" type="button" onclick="abrirAgendarClase('grupal')">+ Agregar clase</button></div><div class="card-b" id="calDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">📅</div><div>Haz clic en una clase del calendario</div></div></div></div>
       </div>
       <div id="calPanelPers" style="display:none">
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px" id="calendarioPersGrid"></div>
-        <div class="card"><div class="card-h"><div class="card-t" id="calPersDetalleTitulo">Selecciona una clase personalizada</div><button class="btn bp btn-sm" type="button" onclick="abrirAgendarClase('pers')">+ Agregar clase</button></div><div class="card-b" id="calPersDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">⭐</div><div>Haz clic en una sesión del calendario</div></div></div></div>
+        <div class="cal-scroll" id="calendarioPersGrid"></div>
+        <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t" id="calPersDetalleTitulo">Selecciona una clase personalizada</div><button class="btn bp btn-sm" type="button" onclick="abrirAgendarClase('pers')">+ Agregar clase</button></div><div class="card-b" id="calPersDetalleBody"><div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">⭐</div><div>Haz clic en una sesión del calendario</div></div></div></div>
       </div>
     </div>
 
@@ -1342,12 +1359,12 @@ Gymnastica</textarea></div>
     <div class="fg"><label class="flb">Tipo de clase</label><select class="finp" id="agendarClaseTipo" onchange="toggleAgendarClaseTipo()"><option value="grupal">📅 Clase grupal</option><option value="pers">⭐ Clase personalizada</option></select></div>
     <div id="agendarClaseGrupalFields">
       <div class="fg"><label class="flb">Nombre de la clase</label><input class="finp" id="agendarGrupalNombre" placeholder="Ej. Gimnasia Artística, Acrobacia..."></div>
-      <div class="g2"><div class="fg"><label class="flb">Día</label><select class="finp" id="agendarGrupalDia"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarGrupalHora" placeholder="4:00pm"></div></div>
+      <div class="g2"><div class="fg"><label class="flb">Fecha</label><input class="finp" id="agendarGrupalFecha" type="date"></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarGrupalHora" placeholder="4:00pm"></div></div>
       <div class="fg"><label class="flb">Cupo máximo</label><input class="finp" id="agendarGrupalCupo" type="number" min="1" max="50" placeholder="20" value="20"></div>
     </div>
     <div id="agendarClasePersFields" style="display:none">
       <div class="fg"><label class="flb">Alumno</label><select class="finp" id="agendarPersAlumno"></select></div>
-      <div class="g2"><div class="fg"><label class="flb">Día</label><select class="finp" id="agendarPersDia"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarPersHora" placeholder="10:00 AM"></div></div>
+      <div class="g2"><div class="fg"><label class="flb">Fecha</label><input class="finp" id="agendarPersFecha" type="date"></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="agendarPersHora" placeholder="10:00 AM"></div></div>
       <div class="g2"><div class="fg"><label class="flb">Entrenador</label><input class="finp" id="agendarPersEnt" placeholder="Nombre del entrenador"></div><div class="fg"><label class="flb">Duración</label><input class="finp" id="agendarPersDur" placeholder="60 min" value="60 min"></div></div>
     </div>
     <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('agendarClase')">Cancelar</button><button type="button" class="btn bp" onclick="guardarClaseCalendario()">Agendar</button></div>
@@ -1551,7 +1568,6 @@ const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
 let estBusqueda='';
-let calWeekOffset=0;
 let editEstIdx=-1;
 let editInvId='';
 let editPromoId='';
@@ -4027,6 +4043,74 @@ const CALENDARIO_PERS_DATA=[
 ];
 
 let calTabActivo='grupal';
+const CAL_MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const CAL_DIAS_SEM_FULL=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function calAnioActual(){return new Date().getFullYear();}
+
+function isoFecha(y,m,d){
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function isoHoy(){
+  const h=new Date();
+  return isoFecha(h.getFullYear(),h.getMonth(),h.getDate());
+}
+
+function proximaFechaNombreDia(nombreDia,desde=new Date()){
+  const target=CAL_DIAS_SEM_FULL.indexOf(nombreDia);
+  if(target<0)return isoHoy();
+  const d=new Date(desde);
+  for(let i=0;i<14;i++){
+    if(d.getDay()===target)return isoFecha(d.getFullYear(),d.getMonth(),d.getDate());
+    d.setDate(d.getDate()+1);
+  }
+  return isoHoy();
+}
+
+function fechaDesdeLegacy(fechaStr,anio,diaIdx){
+  const meses={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
+  if(fechaStr){
+    const p=fechaStr.trim().split(/\s+/);
+    if(p.length>=2){
+      const d=parseInt(p[0],10);
+      const m=meses[p[1].toLowerCase().slice(0,3)];
+      if(!isNaN(d)&&m!==undefined)return isoFecha(anio,m,d);
+    }
+  }
+  const dias=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  return proximaFechaNombreDia(dias[diaIdx]||'Lunes');
+}
+
+function esFormatoSemanalCal(arr){
+  return Array.isArray(arr)&&arr.length>0&&Array.isArray(arr[0]?.clases);
+}
+
+function flattenCalSeed(data,anio,prefix){
+  const flat=[];
+  data.forEach((col,idx)=>{
+    (col.clases||[]).forEach(c=>{
+      flat.push({...c,id:prefix+idx+'_'+Math.random().toString(36).slice(2,6),fecha:fechaDesdeLegacy(col.fecha,anio,idx)});
+    });
+  });
+  return flat;
+}
+
+function migrarCalendarioAMensual(){
+  if(DB.calendarioVersion==='monthly.v1')return;
+  const anio=calAnioActual();
+  if(esFormatoSemanalCal(DB.calendarioGrupal))DB.calendarioGrupal=flattenCalSeed(DB.calendarioGrupal,anio,'cg_');
+  if(esFormatoSemanalCal(DB.clasesPers))DB.clasesPers=flattenCalSeed(DB.clasesPers,anio,'cp_');
+  (DB.calendarioGrupal||[]).forEach(c=>{
+    if(!c.id)c.id='cg_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    if(!c.fecha)c.fecha=isoHoy();
+  });
+  (DB.clasesPers||[]).forEach(c=>{
+    if(!c.id)c.id='cp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    if(!c.fecha)c.fecha=isoHoy();
+  });
+  DB.calendarioVersion='monthly.v1';
+}
 
 function setCalTab(tab){
   calTabActivo=tab;
@@ -4035,67 +4119,113 @@ function setCalTab(tab){
   });
   const grupal=document.getElementById('calPanelGrupal');
   const pers=document.getElementById('calPanelPers');
-  const sub=document.getElementById('calSub');
   if(grupal)grupal.style.display=tab==='grupal'?'block':'none';
   if(pers)pers.style.display=tab==='pers'?'block':'none';
-  if(sub){
-    sub.textContent=tab==='pers'
-      ?'Clases personalizadas — Semana del 27 de mayo al 1 de junio, 2026'
-      :'Semana del 27 de mayo al 1 de junio, 2026';
-  }
+  actualizarCalSub();
 }
 
-function renderCalGrid(data,gridId,tipo){
-  const grid=document.getElementById(gridId);
-  if(!grid)return;
+function actualizarCalSub(){
+  const sub=document.getElementById('calSub');
+  if(!sub)return;
+  const anio=calAnioActual();
+  const mes=CAL_MESES_NOM[new Date().getMonth()];
+  sub.textContent=calTabActivo==='pers'
+    ?`Calendario ${anio} · Clases personalizadas · ${mes}`
+    :`Calendario ${anio} · Clases grupales · ${mes}`;
+}
+
+function primerDiaGrid(anio,mes){
+  const dow=new Date(anio,mes,1).getDay();
+  return(dow+6)%7;
+}
+
+function diasEnMes(anio,mes){
+  return new Date(anio,mes+1,0).getDate();
+}
+
+function indexarClasesPorFecha(lista){
+  const anio=calAnioActual();
+  const map={};
+  (lista||[]).forEach(c=>{
+    if(!c.fecha)return;
+    if(parseInt(c.fecha.slice(0,4),10)!==anio)return;
+    (map[c.fecha]=map[c.fecha]||[]).push(c);
+  });
+  Object.values(map).forEach(arr=>arr.sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+  return map;
+}
+
+function renderCalEventoChip(c,tipo){
   const esc=n=>String(n).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  grid.innerHTML=data.map((d,diaIdx)=>`
-    <div style="background:var(--w);border:1.5px solid var(--g200);border-radius:12px;overflow:hidden;box-shadow:var(--sh0)">
-      <div style="padding:10px 12px;border-bottom:1px solid var(--g100);background:${tipo==='pers'?'var(--p50)':'var(--g50)'}">
-        <div style="font-size:13px;font-weight:700;color:var(--g900)">${d.dia}</div>
-        <div style="font-size:11px;color:var(--g400)">${d.fecha}</div>
-      </div>
-      <div style="padding:8px">
-        ${d.clases.map((c,claseIdx)=>{
-          if(tipo==='pers'){
-            return `
-        <div class="cal-slot" onclick="verClasePers('${esc(c.alumno)}','${esc(c.hora)}','${esc(c.entrenador)}','${esc(c.duracion)}','${c.c}')" style="margin-bottom:6px;padding:8px 10px;border-radius:8px;background:${c.c}18;border-left:3px solid ${c.c};cursor:pointer;transition:all .15s" onmouseover="this.style.background='${c.c}28'" onmouseout="this.style.background='${c.c}18'">
-          <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('pers',${diaIdx},${claseIdx})">✕</button>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
-            <div style="font-size:11px;font-weight:700;color:${c.c}">${c.hora}</div>
-            <span class="cal-pers-badge">1:1</span>
-          </div>
-          <div style="font-size:12px;font-weight:600;color:var(--g800);margin:3px 0">${c.alumno}</div>
-          <div style="font-size:10px;color:var(--g500)">👤 ${c.entrenador}</div>
-          <div style="font-size:10px;color:var(--g400);margin-top:2px">⏱ ${c.duracion}</div>
-        </div>`;
-          }
-          const live=alumnosEnClaseCal(c.nombre).length;
-          const cap=c.max||20;
-          const pct=cap?Math.min(100,Math.round(live/cap*100)):0;
-          return `
-        <div class="cal-slot" onclick="verClase('${esc(c.nombre)}','${esc(c.hora)}',${live},${cap})" style="margin-bottom:6px;padding:8px 10px;border-radius:8px;background:${c.c}15;border-left:3px solid ${c.c};cursor:pointer;transition:all .15s" onmouseover="this.style.background='${c.c}25'" onmouseout="this.style.background='${c.c}15'">
-          <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('grupal',${diaIdx},${claseIdx})">✕</button>
-          <div style="font-size:11px;font-weight:700;color:${c.c}">${c.hora}</div>
-          <div style="font-size:12px;font-weight:600;color:var(--g800);margin:2px 0">${c.nombre}</div>
-          <div style="font-size:10px;color:var(--g500)">${live}/${cap} alumnos</div>
-          <div style="height:3px;background:var(--g200);border-radius:2px;margin-top:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c.c};border-radius:2px"></div></div>
-        </div>`;
-        }).join('')}
-        ${d.clases.length===0?'<div style="font-size:11px;color:var(--g300);text-align:center;padding:8px">Sin clases</div>':''}
-      </div>
-    </div>`).join('');
+  const id=esc(c.id);
+  if(tipo==='pers'){
+    return `<div class="cal-ev cal-slot" style="background:${c.c}18;border-left-color:${c.c}" onclick="verClasePers('${esc(c.alumno)}','${esc(c.hora)}','${esc(c.entrenador)}','${esc(c.duracion)}','${c.c}')">
+      <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('pers','${id}')">✕</button>
+      <span class="cal-ev-t" style="color:${c.c}">${c.hora}</span> ${c.alumno}
+    </div>`;
+  }
+  const live=alumnosEnClaseCal(c.nombre).length;
+  const cap=c.max||20;
+  return `<div class="cal-ev cal-slot" style="background:${c.c}15;border-left-color:${c.c}" onclick="verClase('${esc(c.nombre)}','${esc(c.hora)}',${live},${cap})">
+    <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('grupal','${id}')">✕</button>
+    <span class="cal-ev-t" style="color:${c.c}">${c.hora}</span> ${c.nombre}
+  </div>`;
 }
 
-function eliminarClaseCalendario(tipo,diaIdx,claseIdx){
+function renderCeldasMes(anio,mes,porFecha,tipo,hoy){
+  const offset=primerDiaGrid(anio,mes);
+  const total=diasEnMes(anio,mes);
+  let cells='';
+  for(let i=0;i<offset;i++)cells+='<div class="cal-day cal-day-pad"></div>';
+  for(let d=1;d<=total;d++){
+    const fecha=isoFecha(anio,mes,d);
+    const evs=porFecha[fecha]||[];
+    const isToday=fecha===hoy;
+    cells+=`<div class="cal-day${isToday?' cal-day-today':''}">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-day-evs">${evs.map(c=>renderCalEventoChip(c,tipo)).join('')}</div>
+    </div>`;
+  }
+  return cells;
+}
+
+function renderCalMesesAnio(lista,containerId,tipo){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const anio=calAnioActual();
+  const hoy=isoHoy();
+  const porFecha=indexarClasesPorFecha(lista);
+  let html='';
+  for(let m=0;m<12;m++){
+    html+=`<div class="cal-month" data-cal-month="${m}" id="cal-mes-${containerId}-${m}">
+      <div class="cal-month-title">${CAL_MESES_NOM[m]} ${anio}</div>
+      <div class="cal-month-grid">
+        ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=>`<div class="cal-day-hd">${d}</div>`).join('')}
+        ${renderCeldasMes(anio,m,porFecha,tipo,hoy)}
+      </div>
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+function scrollCalMesActual(containerId,smooth){
+  const id=containerId||(calTabActivo==='pers'?'calendarioPersGrid':'calendarioGrid');
+  const el=document.getElementById(id);
+  if(!el)return;
+  const mes=new Date().getMonth();
+  const target=el.querySelector(`[data-cal-month="${mes}"]`)||document.getElementById(`cal-mes-${id}-${mes}`);
+  if(target)target.scrollIntoView({behavior:smooth?'smooth':'auto',block:'start'});
+}
+
+function eliminarClaseCalendario(tipo,id){
   ensureCalendarioData();
   const arr=tipo==='pers'?DB.clasesPers:DB.calendarioGrupal;
-  const dia=arr[diaIdx];
-  const c=dia?.clases?.[claseIdx];
-  if(!c)return;
+  const idx=arr.findIndex(c=>c.id===id);
+  if(idx<0)return;
+  const c=arr[idx];
   const label=tipo==='pers'?c.alumno:c.nombre;
   if(!confirm(`¿Eliminar "${label}" — ${c.hora} del calendario?`))return;
-  dia.clases.splice(claseIdx,1);
+  arr.splice(idx,1);
   saveDB();
   renderCalendario();
   const detTit=tipo==='pers'?document.getElementById('calPersDetalleTitulo'):document.getElementById('calDetalleTitulo');
@@ -4105,23 +4235,12 @@ function eliminarClaseCalendario(tipo,diaIdx,claseIdx){
   toast('Clase eliminada del calendario','✓');
 }
 
-function actualizarCalSub(){
-  const sub=document.getElementById('calSub');
-  if(!sub)return;
-  const hoy=new Date();
-  hoy.setDate(hoy.getDate()+calWeekOffset*7);
-  const dia=hoy.getDay();
-  const lun=new Date(hoy);
-  lun.setDate(hoy.getDate()-(dia===0?6:dia-1));
-  const sab=new Date(lun);
-  sab.setDate(lun.getDate()+5);
-  const fmt=d=>d.toLocaleDateString('es-MX',{day:'numeric',month:'long'});
-  sub.textContent=`Semana del ${fmt(lun)} al ${fmt(sab)}, ${sab.getFullYear()}`;
-}
-
 function ensureCalendarioData(){
-  if(!DB.calendarioGrupal?.length)DB.calendarioGrupal=JSON.parse(JSON.stringify(CALENDARIO_DATA));
-  if(!DB.clasesPers?.length)DB.clasesPers=JSON.parse(JSON.stringify(CALENDARIO_PERS_DATA));
+  if(!DB.calendarioGrupal)DB.calendarioGrupal=[];
+  if(!DB.clasesPers)DB.clasesPers=[];
+  if(DB.calendarioVersion!=='monthly.v1')migrarCalendarioAMensual();
+  if(!DB.calendarioGrupal.length)DB.calendarioGrupal=flattenCalSeed(CALENDARIO_DATA,calAnioActual(),'cg_');
+  if(!DB.clasesPers.length)DB.clasesPers=flattenCalSeed(CALENDARIO_PERS_DATA,calAnioActual(),'cp_');
 }
 
 function alumnosEnClaseCal(nombreClase){
@@ -4135,10 +4254,10 @@ function alumnosEnClaseCal(nombreClase){
 
 function renderCalendario(){
   ensureCalendarioData();
-  actualizarCalSub();
-  renderCalGrid(DB.calendarioGrupal,'calendarioGrid','grupal');
-  renderCalGrid(DB.clasesPers,'calendarioPersGrid','pers');
+  renderCalMesesAnio(DB.calendarioGrupal,'calendarioGrid','grupal');
+  renderCalMesesAnio(DB.clasesPers,'calendarioPersGrid','pers');
   setCalTab(calTabActivo);
+  requestAnimationFrame(()=>scrollCalMesActual(null,false));
 }
 
 function verClase(nombre,hora,alumnos,max){
@@ -4977,6 +5096,11 @@ function toggleAgendarClaseTipo(){
 function prepararModalAgendarClase(){
   llenarSelectAlumnos('agendarPersAlumno',true);
   toggleAgendarClaseTipo();
+  const hoy=isoHoy();
+  const fg=document.getElementById('agendarGrupalFecha');
+  const fp=document.getElementById('agendarPersFecha');
+  if(fg&&!fg.value)fg.value=hoy;
+  if(fp&&!fp.value)fp.value=hoy;
 }
 
 function abrirAgendarClase(tipo,alumnoPrefill,clasePrefill,horarioStr){
@@ -4989,17 +5113,18 @@ function abrirAgendarClase(tipo,alumnoPrefill,clasePrefill,horarioStr){
     if(a)a.value=alumnoPrefill;
   }
   const slot=primerSlotHorario(horarioStr||'');
+  const fechaSlot=slot.dia?proximaFechaNombreDia(slot.dia):isoHoy();
   if(horarioStr&&t==='pers'){
-    const d=document.getElementById('agendarPersDia');
-    if(d&&slot.dia)d.value=slot.dia;
+    const f=document.getElementById('agendarPersFecha');
+    if(f)f.value=fechaSlot;
     const hr=document.getElementById('agendarPersHora');
     if(hr&&slot.hora)hr.value=formatearHora12Desde24(slot.hora);
   }
   if(clasePrefill){
     const n=document.getElementById('agendarGrupalNombre');
     if(n)n.value=clasePrefill;
-    const d=document.getElementById('agendarGrupalDia');
-    if(d&&slot.dia)d.value=slot.dia;
+    const f=document.getElementById('agendarGrupalFecha');
+    if(f)f.value=fechaSlot;
     const hr=document.getElementById('agendarGrupalHora');
     if(hr&&slot.hora)hr.value=formatearHora12Desde24(slot.hora);
   }
@@ -5008,16 +5133,15 @@ function abrirAgendarClase(tipo,alumnoPrefill,clasePrefill,horarioStr){
 
 function guardarClaseGrupal(){
   const nombre=document.getElementById('agendarGrupalNombre')?.value?.trim();
-  const dia=document.getElementById('agendarGrupalDia')?.value;
+  const fecha=document.getElementById('agendarGrupalFecha')?.value;
   const hora=document.getElementById('agendarGrupalHora')?.value?.trim();
   const max=parseInt(document.getElementById('agendarGrupalCupo')?.value,10)||20;
-  if(!nombre||!hora){toast('Completa nombre y hora de la clase','⚠️');return;}
-  const idx=CAL_DIA_MAP[dia]??0;
+  if(!nombre||!hora||!fecha){toast('Completa nombre, fecha y hora','⚠️');return;}
+  if(parseInt(fecha.slice(0,4),10)!==calAnioActual()){toast('La fecha debe ser del año '+calAnioActual(),'⚠️');return;}
   ensureCalendarioData();
-  if(!DB.calendarioGrupal[idx])DB.calendarioGrupal[idx]={dia:CAL_DIA_ABR[idx]||'Lun',fecha:'',clases:[]};
   const live=alumnosEnClaseCal(nombre).length;
-  DB.calendarioGrupal[idx].clases.push({
-    hora,nombre,alumnos:live,max,c:colorParaClaseGrupal(nombre)
+  DB.calendarioGrupal.push({
+    id:'cg_'+Date.now(),fecha,hora,nombre,alumnos:live,max,c:colorParaClaseGrupal(nombre)
   });
   saveDB();closeMdl('agendarClase');setCalTab('grupal');renderCalendario();
   toast('Clase grupal agregada al calendario','📅');
@@ -5025,17 +5149,16 @@ function guardarClaseGrupal(){
 
 function guardarClasePersonalizada(){
   const alumno=document.getElementById('agendarPersAlumno')?.value;
-  const dia=document.getElementById('agendarPersDia')?.value;
+  const fecha=document.getElementById('agendarPersFecha')?.value;
   const hora=document.getElementById('agendarPersHora')?.value?.trim();
-  if(!alumno||!hora){toast('Completa alumno y hora','⚠️');return;}
+  if(!alumno||!hora||!fecha){toast('Completa alumno, fecha y hora','⚠️');return;}
+  if(parseInt(fecha.slice(0,4),10)!==calAnioActual()){toast('La fecha debe ser del año '+calAnioActual(),'⚠️');return;}
   const est=DB.estudiantes.find(e=>e.n===alumno);
   const c=est?.c||'#a855f7';
   const ent=document.getElementById('agendarPersEnt')?.value?.trim()||'Entrenador';
   const dur=document.getElementById('agendarPersDur')?.value?.trim()||'60 min';
-  const idx=CAL_DIA_MAP[dia]??0;
   ensureCalendarioData();
-  if(!DB.clasesPers[idx])DB.clasesPers[idx]={dia:CAL_DIA_ABR[idx]||'Lun',fecha:'',clases:[]};
-  DB.clasesPers[idx].clases.push({alumno,hora,entrenador:ent,duracion:dur,c});
+  DB.clasesPers.push({id:'cp_'+Date.now(),fecha,alumno,hora,entrenador:ent,duracion:dur,c});
   saveDB();closeMdl('agendarClase');setCalTab('pers');renderCalendario();
   toast('Clase personalizada agendada','📅');
 }

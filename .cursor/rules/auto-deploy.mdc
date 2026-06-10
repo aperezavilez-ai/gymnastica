@@ -1,0 +1,28 @@
+---
+description: Desplegar a producción automáticamente al terminar cambios de código
+alwaysApply: true
+---
+
+# Deploy automático (GYMNASTICA)
+
+Al **terminar una acción que modifique código** (feature, fix, UI, etc.), despliega sin esperar que el usuario lo pida:
+
+1. `npm run build` — si falla, corrige antes de continuar.
+2. `git status` + `git diff` — solo archivos del proyecto (nunca `assets/`, `.env`, credenciales).
+3. Si hay cambios relevantes:
+   - `git add` solo los archivos modificados de la tarea
+   - `git commit` con mensaje breve en español (el "por qué")
+   - `git push origin main`
+4. Confirmar deploy (Vercel auto-deploy en push a `main`).
+5. Informar al usuario: commit, URL https://gymnastica.mx y que refresque con Ctrl+Shift+R.
+
+## No desplegar cuando
+
+- Solo preguntas, revisión o explicación sin cambios en archivos.
+- El usuario pide explícitamente **no** commitear o no desplegar.
+- El build falla y no se pudo corregir en la misma sesión.
+
+## Notas
+
+- No hacer `git push --force` ni amend salvo reglas de git del usuario.
+- Un solo commit por tarea completada, salvo que el usuario pida varios.
