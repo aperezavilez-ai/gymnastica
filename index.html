@@ -461,6 +461,10 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nom-inp:focus{border-color:var(--b400);outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.12)}
 .nom-eval{font-size:10.5px;color:var(--g500);margin-top:8px;line-height:1.45}
 .nom-eval b{color:var(--g700)}
+.nom-cfg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 12px}
+.nom-cfg label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
+.nom-cfg-wide{grid-column:1/-1}
+.nom-sug{margin:6px 0 0;padding-left:16px;color:var(--o700);font-size:10px;line-height:1.4}
 
 .emp-sueldo-box{background:var(--g50);border:1.5px solid var(--g200);border-radius:12px;padding:14px 16px}
 .emp-sueldo-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:12.5px;color:var(--g600)}
@@ -727,6 +731,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--gr50)">🏅</div></div><div class="sc-val" style="font-size:22px" id="nomStatBonos">$0</div><div class="sc-lbl">Bonos del mes</div></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--o50)">💰</div></div><div class="sc-val" style="font-size:22px" id="nomStatTotal">$0</div><div class="sc-lbl">Nómina total</div></div>
       </div>
+      <div class="card" style="margin-bottom:16px"><div class="card-h"><div class="card-t">Reglas de evaluación automática</div><span class="badge bb">Configurable</span></div><div class="card-b" id="nominaEvalCfg"></div></div>
       <div class="card"><div class="card-h"><div class="card-t">Desglose por empleado</div><span class="badge bb" id="nominaEvalBadge">Editable</span></div><div class="card-b" style="padding:4px 18px" id="nominaL"></div></div>
     </div>
 
@@ -1518,6 +1523,17 @@ const DB={
     descOperacion:'Hosting en la nube, soporte técnico y actualizaciones mensuales',
   },
   inventarioMensual:[],
+  nominaEval:{
+    horaPuntual:'09:45',
+    pesoDias:75,
+    pesoPuntual:25,
+    metaClases:12,
+    metaAlumnos:20,
+    pesoClases:55,
+    pesoAlumnos:45,
+    ajustarBase:true,
+    umbralBaseAsis:70,
+  },
 };
 
 const DB_SEED_SNAPSHOT={
@@ -1582,7 +1598,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.10-fix';
+const APP_VERSION='2026.06.11-nomina';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -2507,11 +2523,66 @@ function renderPagos(){
   renderTransferenciasList();
 }
 
+function empleadoSueldoBase(e){
+  if(e?.baseAplicado!=null&&e.baseAplicado>=0)return Number(e.baseAplicado);
+  return Number(e?.base)||0;
+}
 function empleadoSueldoTotal(e){
-  const base=Number(e?.base)||0;
-  const asis=Number(e?.asis)||0;
-  const prod=Number(e?.des)||0;
-  return base+asis+prod;
+  return empleadoSueldoBase(e)+(Number(e?.asis)||0)+(Number(e?.des)||0);
+}
+const NOMINA_EVAL_DEFAULT={
+  horaPuntual:'09:45',pesoDias:75,pesoPuntual:25,metaClases:12,metaAlumnos:20,
+  pesoClases:55,pesoAlumnos:45,ajustarBase:true,umbralBaseAsis:70,
+};
+function ensureNominaEvalConfig(){
+  if(!DB.nominaEval)DB.nominaEval={...NOMINA_EVAL_DEFAULT};
+  else DB.nominaEval={...NOMINA_EVAL_DEFAULT,...DB.nominaEval};
+  return DB.nominaEval;
+}
+function horaPuntualMinutosNomina(){
+  const cfg=ensureNominaEvalConfig();
+  const m=String(cfg.horaPuntual||'09:45').match(/^(\d{1,2}):(\d{2})/);
+  if(!m)return 9*60+45;
+  return parseInt(m[1],10)*60+parseInt(m[2],10);
+}
+function guardarNominaEvalCampo(campo,valor){
+  ensureNominaEvalConfig();
+  if(campo==='horaPuntual')DB.nominaEval.horaPuntual=String(valor).trim()||'09:45';
+  else if(campo==='ajustarBase')DB.nominaEval.ajustarBase=!!valor;
+  else DB.nominaEval[campo]=Math.max(0,parseInt(String(valor),10)||0);
+  saveDB();
+}
+function sugerenciasNominaEmpleado(mA,mP){
+  const cfg=ensureNominaEvalConfig();
+  const sugs=[];
+  if(mA.asistidos<mA.esperados){
+    const faltan=mA.esperados-mA.asistidos;
+    sugs.push(`Registrar ${faltan} entrada${faltan===1?'':'s'} más en el checador este mes`);
+  }
+  if(mA.pctPuntual<80)sugs.push(`Llegar antes de ${cfg.horaPuntual} para mejorar puntualidad`);
+  if(mP.clases<cfg.metaClases)sugs.push(`Impartir ${cfg.metaClases-mP.clases} clase(s) más (meta: ${cfg.metaClases}/mes)`);
+  if(mP.alumnosActivos<cfg.metaAlumnos)sugs.push(`Alcanzar ${cfg.metaAlumnos} alumnos activos (ahora: ${mP.alumnosActivos})`);
+  return sugs;
+}
+function renderNominaEvalConfig(){
+  const el=document.getElementById('nominaEvalCfg');
+  if(!el)return;
+  const c=ensureNominaEvalConfig();
+  el.innerHTML=`<div class="nom-cfg">
+    <div><label>Hora puntualidad</label><input class="nom-inp" type="time" value="${c.horaPuntual}" onchange="guardarNominaEvalCampo('horaPuntual',this.value)"></div>
+    <div><label>Peso días asistidos %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoDias}" onchange="guardarNominaEvalCampo('pesoDias',this.value)"></div>
+    <div><label>Peso puntualidad %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoPuntual}" onchange="guardarNominaEvalCampo('pesoPuntual',this.value)"></div>
+    <div><label>Meta clases / mes</label><input class="nom-inp" type="number" min="1" value="${c.metaClases}" onchange="guardarNominaEvalCampo('metaClases',this.value)"></div>
+    <div><label>Meta alumnos activos</label><input class="nom-inp" type="number" min="1" value="${c.metaAlumnos}" onchange="guardarNominaEvalCampo('metaAlumnos',this.value)"></div>
+    <div><label>Peso clases %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoClases}" onchange="guardarNominaEvalCampo('pesoClases',this.value)"></div>
+    <div><label>Peso alumnos %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoAlumnos}" onchange="guardarNominaEvalCampo('pesoAlumnos',this.value)"></div>
+    <div><label>Umbral base asis. %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.umbralBaseAsis}" onchange="guardarNominaEvalCampo('umbralBaseAsis',this.value)"></div>
+    <div class="nom-cfg-wide" style="display:flex;align-items:center;gap:8px;padding-top:4px">
+      <input type="checkbox" id="nomAjustarBase" ${c.ajustarBase?'checked':''} onchange="guardarNominaEvalCampo('ajustarBase',this.checked)">
+      <label for="nomAjustarBase" style="margin:0;font-size:12px;color:var(--g700)">Ajustar sueldo base si asistencia &lt; umbral (proporcional al %)</label>
+    </div>
+  </div>
+  <p style="margin-top:12px;font-size:11.5px;color:var(--g500);line-height:1.5">Los bonos se calculan con las metas de cada empleado. El sueldo base contractual no cambia; solo se aplica un <strong>base ajustado</strong> del mes cuando la asistencia está bajo el umbral.</p>`;
 }
 
 function actualizarEmpSueldoTotal(){
@@ -2537,11 +2608,13 @@ function prepararModalEmpleado(){
 function renderNomina(){
   const el=document.getElementById('nominaL');
   if(!el)return;
+  ensureNominaEvalConfig();
+  renderNominaEvalConfig();
   ensureEmpleadosNomina();
   const lista=DB.empleados;
   let sumBase=0,sumBonos=0,sumTotal=0;
   lista.forEach(e=>{
-    sumBase+=Number(e.base)||0;
+    sumBase+=empleadoSueldoBase(e);
     sumBonos+=(Number(e.asis)||0)+(Number(e.des)||0);
     sumTotal+=empleadoSueldoTotal(e);
   });
@@ -2556,7 +2629,9 @@ function renderNomina(){
   el.innerHTML=lista.length?lista.map(e=>{
     const tot=empleadoSueldoTotal(e);
     const id=esc(e.checId||e.n);
-    const evalHtml=e.evalPctAsis!=null?`<div class="nom-eval"><b>Evaluación:</b> Asistencia ${e.evalPctAsis}% · Productividad ${e.evalPctProd||0}%<br>${e.evalDetalleAsis||''}${e.evalDetalleProd?' · '+e.evalDetalleProd:''}</div>`:'';
+    const baseNota=e.baseAjusteNota?`<div style="font-size:10px;color:var(--o700);margin-top:4px">${e.baseAjusteNota}</div>`:'';
+    const sugs=(e.evalSugerencias||[]).length?`<ul class="nom-sug">${e.evalSugerencias.map(s=>`<li>${s}</li>`).join('')}</ul>`:'';
+    const evalHtml=e.evalPctAsis!=null?`<div class="nom-eval"><b>Evaluación:</b> Asistencia ${e.evalPctAsis}% · Productividad ${e.evalPctProd||0}%<br>${e.evalDetalleAsis||''}${e.evalDetalleProd?' · '+e.evalDetalleProd:''}${baseNota}${sugs}</div>`:'';
     return `<div class="nr">
       <div class="nr-av" style="background:${e.c}">${e.n.charAt(0)}</div>
       <div style="flex:1;min-width:0">
@@ -2636,14 +2711,19 @@ function metricasAsistenciaEmpleado(emp){
   });
   const diasUnicos=new Set(entradas.map(c=>c.fecha));
   const asistidos=diasUnicos.size;
+  const limite=horaPuntualMinutosNomina();
   const puntual=entradas.filter(c=>{
     const mins=horaAMinutos(c.hora);
-    return mins===null||mins<=9*60+45;
+    return mins===null||mins<=limite;
   }).length;
+  const cfg=ensureNominaEvalConfig();
+  const wD=Number(cfg.pesoDias)||75;
+  const wP=Number(cfg.pesoPuntual)||25;
   const pctAsist=Math.min(100,Math.round(asistidos/esperados*100));
   const pctPuntual=entradas.length?Math.round(puntual/entradas.length*100):0;
-  const pct=Math.round(pctAsist*0.75+pctPuntual*0.25);
-  return{pct,asistidos,esperados,pctAsist,pctPuntual,detalle:`${asistidos}/${esperados} días laborables · puntualidad ${pctPuntual}%`};
+  const pct=Math.round(pctAsist*wD/100+pctPuntual*wP/100);
+  const hora=cfg.horaPuntual||'09:45';
+  return{pct,asistidos,esperados,pctAsist,pctPuntual,detalle:`${asistidos}/${esperados} días · puntualidad ${pctPuntual}% (antes ${hora})`};
 }
 
 function metricasProductividadEmpleado(emp){
@@ -2656,10 +2736,15 @@ function metricasProductividadEmpleado(emp){
     :0;
   const clases=pers+grupales;
   const alumnosActivos=DB.estudiantes.filter(e=>e.activo!==false).length;
-  const pctClases=Math.min(100,Math.round(clases/12*100));
-  const pctAlumnos=Math.min(100,Math.round(alumnosActivos/20*100));
-  const pct=Math.round(pctClases*0.55+pctAlumnos*0.45);
-  return{pct,clases,alumnosActivos,detalle:`${clases} clases · ${alumnosActivos} alumnos activos`};
+  const cfg=ensureNominaEvalConfig();
+  const metaC=Math.max(1,Number(cfg.metaClases)||12);
+  const metaA=Math.max(1,Number(cfg.metaAlumnos)||20);
+  const wC=Number(cfg.pesoClases)||55;
+  const wA=Number(cfg.pesoAlumnos)||45;
+  const pctClases=Math.min(100,Math.round(clases/metaC*100));
+  const pctAlumnos=Math.min(100,Math.round(alumnosActivos/metaA*100));
+  const pct=Math.round(pctClases*wC/100+pctAlumnos*wA/100);
+  return{pct,clases,alumnosActivos,detalle:`${clases}/${metaC} clases · ${alumnosActivos}/${metaA} alumnos activos`};
 }
 
 function aplicarEvaluacionNominaEmpleado(empId,silent){
@@ -2668,14 +2753,24 @@ function aplicarEvaluacionNominaEmpleado(empId,silent){
   ensureEmpleadosNomina();
   const asisMeta=Number(emp.asisMeta)||150;
   const desMeta=Number(emp.desMeta)||125;
+  const cfg=ensureNominaEvalConfig();
   const mA=metricasAsistenciaEmpleado(emp);
   const mP=metricasProductividadEmpleado(emp);
   emp.asis=Math.round(asisMeta*mA.pct/100);
   emp.des=Math.round(desMeta*mP.pct/100);
+  const baseContrato=Number(emp.base)||0;
+  if(cfg.ajustarBase&&mA.pct<(Number(cfg.umbralBaseAsis)||70)){
+    emp.baseAplicado=Math.round(baseContrato*mA.pct/100);
+    emp.baseAjusteNota=`Base ajustada: $${baseContrato.toLocaleString('es-MX')} → $${emp.baseAplicado.toLocaleString('es-MX')} (${mA.pct}% asistencia, umbral ${cfg.umbralBaseAsis}%)`;
+  }else{
+    emp.baseAplicado=null;
+    delete emp.baseAjusteNota;
+  }
   emp.evalPctAsis=mA.pct;
   emp.evalPctProd=mP.pct;
   emp.evalDetalleAsis=mA.detalle;
   emp.evalDetalleProd=mP.detalle;
+  emp.evalSugerencias=sugerenciasNominaEmpleado(mA,mP);
   emp.nominaEvalAt=new Date().toISOString();
   saveDB();
   renderNomina();
@@ -2695,7 +2790,7 @@ function actualizarNominaCampo(empId,campo,valor){
   const emp=findEmpleadoNomina(empId);
   if(!emp)return;
   const n=Math.max(0,parseInt(String(valor),10)||0);
-  if(campo==='base')emp.base=n;
+  if(campo==='base'){emp.base=n;emp.baseAplicado=null;delete emp.baseAjusteNota;}
   else if(campo==='asis'){emp.asis=n;emp.asisMeta=n;}
   else if(campo==='des'){emp.des=n;emp.desMeta=n;}
   saveDB();
@@ -2706,7 +2801,7 @@ function actualizarNominaCampo(empId,campo,valor){
   const setStat=(id,v)=>{const x=document.getElementById(id);if(x)x.textContent=v;};
   let sumBase=0,sumBonos=0,sumTotal=0;
   DB.empleados.forEach(e=>{
-    sumBase+=Number(e.base)||0;
+    sumBase+=empleadoSueldoBase(e);
     sumBonos+=(Number(e.asis)||0)+(Number(e.des)||0);
     sumTotal+=empleadoSueldoTotal(e);
   });
@@ -2719,13 +2814,17 @@ function filasReporteNomina(){
   ensureEmpleadosNomina();
   return(DB.empleados||[]).map(e=>{
     const t=empleadoSueldoTotal(e);
+    const baseReal=empleadoSueldoBase(e);
     return{
       Empleado:e.n,Rol:e.rol||'—',NIP:e.pinChecador||'—',
-      'Sueldo base':formatMxnInv(e.base),'Bono asistencia':formatMxnInv(e.asis),'Bono productividad':formatMxnInv(e.des),
+      'Base contractual':formatMxnInv(e.base),'Base aplicada mes':baseReal!==Number(e.base)?formatMxnInv(baseReal):formatMxnInv(e.base),
+      'Bono asistencia':formatMxnInv(e.asis),'Bono productividad':formatMxnInv(e.des),
       'Total integrado':formatMxnInv(t),
       'Eval. asistencia %':e.evalPctAsis!=null?e.evalPctAsis+'%':'—',
       'Eval. productividad %':e.evalPctProd!=null?e.evalPctProd+'%':'—',
       DetalleAsistencia:e.evalDetalleAsis||'—',DetalleProductividad:e.evalDetalleProd||'—',
+      Sugerencias:(e.evalSugerencias||[]).join(' · ')||'—',
+      AjusteBase:e.baseAjusteNota||'—',
       WhatsApp:e.tel||'—',Correo:e.email||'—',Periodo:getPeriodoActual()
     };
   });
@@ -4013,7 +4112,7 @@ function crearReciboNominaEmpleado(emp,autoEnviar){
     empleado:emp.n,
     concepto:`Nómina pagada — ${periodo}`,
     periodo,
-    sueldoBase:'$'+(emp.base||0).toLocaleString('es-MX'),
+    sueldoBase:'$'+empleadoSueldoBase(emp).toLocaleString('es-MX'),
     bonoAsistencia:'$'+(emp.asis||0).toLocaleString('es-MX'),
     bonoProductividad:'$'+(emp.des||0).toLocaleString('es-MX'),
     monto:'$'+total.toLocaleString('es-MX'),
@@ -4912,18 +5011,22 @@ function renderRepPanelAsistencia(m){
 }
 
 function renderRepPanelNomina(m){
+  const c=ensureNominaEvalConfig();
   return `<div class="card"><div class="card-h"><div class="card-t">Reporte de nómina — ${m.periodo}</div><span class="badge bg">Total ${formatMxnInv(m.nominaTotal)}</span></div><div class="card-b" style="padding:0">
     <table class="rep-table-mini"><thead><tr><th>Empleado</th><th>Base</th><th>Bono asis.</th><th>Bono prod.</th><th>Total</th><th>Eval. asis.</th><th>Eval. prod.</th></tr></thead><tbody>
       ${(DB.empleados||[]).map(e=>{
         const t=empleadoSueldoTotal(e);
-        return `<tr><td style="font-weight:600">${e.n}<div style="font-size:10px;color:var(--g500);font-weight:400">${e.rol||'—'}</div></td><td>${formatMxnInv(e.base)}</td><td>${formatMxnInv(e.asis)}</td><td>${formatMxnInv(e.des)}</td><td style="font-weight:800;color:var(--gr700)">${formatMxnInv(t)}</td><td>${e.evalPctAsis!=null?e.evalPctAsis+'%':'—'}</td><td>${e.evalPctProd!=null?e.evalPctProd+'%':'—'}</td></tr>`;
+        const b=empleadoSueldoBase(e);
+        const baseTxt=b!==Number(e.base)?`${formatMxnInv(b)} <span style="font-size:10px;color:var(--o600)">(cont. ${formatMxnInv(e.base)})</span>`:formatMxnInv(e.base);
+        return `<tr><td style="font-weight:600">${e.n}<div style="font-size:10px;color:var(--g500);font-weight:400">${e.rol||'—'}</div></td><td>${baseTxt}</td><td>${formatMxnInv(e.asis)}</td><td>${formatMxnInv(e.des)}</td><td style="font-weight:800;color:var(--gr700)">${formatMxnInv(t)}</td><td>${e.evalPctAsis!=null?e.evalPctAsis+'%':'—'}</td><td>${e.evalPctProd!=null?e.evalPctProd+'%':'—'}</td></tr>`;
       }).join('')}
     </tbody></table>
   </div></div>
   <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t">Criterios evaluación automática</div></div><div class="card-b" style="font-size:12.5px;color:var(--g600);line-height:1.55">
-    <p><strong>Bono asistencia:</strong> checadas de entrada del mes ÷ días laborables (lun–sáb), con 25% por puntualidad (antes de 9:45).</p>
-    <p style="margin-top:8px"><strong>Bono productividad:</strong> clases personalizadas impartidas + alumnos activos del gimnasio (55% clases / 45% matrícula).</p>
-    <p style="margin-top:8px">Usa <strong>⟳ Evaluar mes</strong> en Nómina para recalcular bonos; los montos siguen siendo editables manualmente.</p>
+    <p><strong>Bono asistencia:</strong> checadas de entrada ÷ días laborables (lun–sáb). Peso: ${c.pesoDias}% días + ${c.pesoPuntual}% puntualidad (antes de ${c.horaPuntual}).</p>
+    <p style="margin-top:8px"><strong>Bono productividad:</strong> meta ${c.metaClases} clases y ${c.metaAlumnos} alumnos activos. Peso: ${c.pesoClases}% clases + ${c.pesoAlumnos}% alumnos.</p>
+    <p style="margin-top:8px"><strong>Ajuste base:</strong> ${c.ajustarBase?`activo si asistencia &lt; ${c.umbralBaseAsis}% (proporcional al %)`: 'desactivado'}.</p>
+    <p style="margin-top:8px">Usa <strong>⟳ Evaluar mes</strong> en Nómina; montos editables manualmente después.</p>
   </div></div>`;
 }
 
@@ -6266,6 +6369,8 @@ function applyDbSnapshot(saved){
   if(saved.config)DB.config=saved.config;
   if(saved.clasesPers)DB.clasesPers=saved.clasesPers;
   if(saved.calendarioGrupal)DB.calendarioGrupal=saved.calendarioGrupal;
+  if(saved.nominaEval)DB.nominaEval=saved.nominaEval;
+  ensureNominaEvalConfig();
 }
 
 function applyUsersSnapshot(saved){
