@@ -1814,11 +1814,22 @@ function doLogin(){
     return;
   }
 
-  // Login exitoso
+  guardarSesion(email);
+  entrarSistema(usuario,email);
+}
+
+function guardarSesion(email){
+  try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({email,ts:Date.now()}));}catch(e){}
+}
+
+function limpiarSesion(){
+  try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}
+}
+
+function entrarSistema(usuario,email){
   currentUser=usuario;
   currentUser.loginEmail=email;
   currentRole=usuario.role;
-
   document.getElementById('loginError').style.display='none';
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('topbar').style.display='flex';
@@ -1827,6 +1838,24 @@ function doLogin(){
   setCloudStatus(cloudActive?'☁️ Conectado a Supabase':'💾 Solo almacenamiento local',cloudActive?'var(--gr700)':'var(--g500)');
   if(cloudActive)pullFromCloudIfNewer(true);
   goTo(currentRole==='padre'?'padre':'dashboard');
+}
+
+function restaurarSesion(){
+  try{
+    const raw=sessionStorage.getItem(SESSION_KEY);
+    if(!raw)return false;
+    const ses=JSON.parse(raw);
+    const email=ses?.email;
+    if(!email)return false;
+    ensureUsuariosCredenciales();
+    const usuario=USUARIOS[email];
+    if(!usuario)return false;
+    entrarSistema(usuario,email);
+    return true;
+  }catch(e){
+    limpiarSesion();
+    return false;
+  }
 }
 
 function showLoginError(msg){
@@ -1911,6 +1940,7 @@ function showLogin(){
   document.getElementById('topbar')?.classList.remove('padre-mode');
   currentUser=null;
   currentRole='';
+  limpiarSesion();
   selLoginMode('auth');
 }
 
@@ -5942,6 +5972,7 @@ function toast(msg,ico='✓'){
 const STORAGE_KEY='gymnastica_db_v1';
 const USERS_KEY='gymnastica_users_v1';
 const CLOUD_AT_KEY='gymnastica_cloud_at';
+const SESSION_KEY='gymnastica_session_v1';
 let cloudModule=null;
 let cloudActive=false;
 let cloudSyncTimer=null;
@@ -6280,6 +6311,7 @@ async function initPersistence(){
     setCloudStatus(`⚠️ Sin sincronización en la nube (${det})`,'var(--o600)');
   }
   cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
+  restaurarSesion();
   document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('loginPass')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   const ver=document.getElementById('appVersion');
