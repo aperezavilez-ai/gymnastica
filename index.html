@@ -889,10 +889,11 @@ Gymnastica</textarea></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--y50)">⚠️</div></div><div class="sc-val" style="font-size:22px" id="invStatRegular">0</div><div class="sc-lbl">Estado regular</div></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--r50)">🔴</div></div><div class="sc-val" style="font-size:22px" id="invStatDanado">0</div><div class="sc-lbl">Necesitan reemplazo</div></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--b50)">📦</div></div><div class="sc-val" style="font-size:22px" id="invStatPiezas">0</div><div class="sc-lbl">Piezas totales</div></div>
-        <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--p50)">💰</div></div><div class="sc-val" style="font-size:20px" id="invStatValor">$0</div><div class="sc-lbl">Valor del inventario</div></div>
+        <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--p50)">💰</div></div><div class="sc-val" style="font-size:20px" id="invStatValor">$0</div><div class="sc-lbl">Valor residual</div></div>
       </div>
       <div class="card"><div class="card-h"><div class="card-t">Equipamiento registrado</div><span class="badge bb" id="invTablaSub">—</span></div>
-        <div class="tw"><table><thead><tr><th>Artículo</th><th>Categoría</th><th>Cantidad</th><th>Costo unit.</th><th>Subtotal</th><th>Estado</th><th>Fecha compra</th><th>Próximo reemplazo</th><th>Acciones</th></tr></thead>
+        <div style="padding:10px 18px 0;font-size:11.5px;color:var(--g500);line-height:1.5">Depreciación: <strong>tiempo en meses</strong> + <strong>horas de uso semanal</strong> vs vida útil. Reemplazar cuando ≥80% depreciado o estado dañado.</div>
+        <div class="tw"><table><thead><tr><th>Artículo</th><th>Categoría</th><th>Cantidad</th><th>Costo unit.</th><th>Subtotal</th><th>Tiempo de uso</th><th>Depreciación</th><th>Valor residual</th><th>Estado</th><th>Fecha compra</th><th>Reemplazo</th><th>Acciones</th></tr></thead>
         <tbody id="tbInventario"></tbody>
         <tfoot id="tbInventarioFoot"></tfoot>
         </table></div>
@@ -1321,7 +1322,8 @@ Gymnastica</textarea></div>
     <div class="fg"><label class="flb">Artículo</label><input class="finp" id="invArtNombre" placeholder="Ej. Colchoneta 10 cm"></div>
     <div class="g2"><div class="fg"><label class="flb">Categoría</label><select class="finp" id="invArtCat"><option>Equipo</option><option>Seguridad</option><option>Uniformes</option><option>Mantenimiento</option></select></div><div class="fg"><label class="flb">Cantidad</label><input class="finp" id="invArtCant" type="number" min="1" value="1"></div></div>
     <div class="g2"><div class="fg"><label class="flb">Costo unitario ($)</label><input class="finp" id="invArtCosto" type="number" min="0" step="0.01" placeholder="0"></div><div class="fg"><label class="flb">Estado</label><select class="finp" id="invArtEst"><option value="bueno">Bueno</option><option value="regular">Regular</option><option value="dañado">Dañado</option></select></div></div>
-    <div class="g2"><div class="fg"><label class="flb">Fecha compra</label><input class="finp" id="invArtCompra" placeholder="Ene 2026"></div><div class="fg"><label class="flb">Próximo mantenimiento</label><input class="finp" id="invArtProx" placeholder="Revisión anual"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Fecha compra</label><input class="finp" id="invArtCompra" placeholder="Ene 2026"></div><div class="fg"><label class="flb">Horas de uso / semana</label><input class="finp" id="invArtHoras" type="number" min="0" step="1" placeholder="Ej. 20"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Vida útil (meses)</label><input class="finp" id="invArtVida" type="number" min="1" placeholder="Según categoría"></div><div class="fg"><label class="flb">Nota reemplazo</label><input class="finp" id="invArtProx" placeholder="Auto según depreciación"></div></div>
     <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('newInventario')">Cancelar</button><button type="button" class="btn bp" onclick="guardarInventario()">Guardar artículo</button></div>
   </div>
 </div>
@@ -1331,8 +1333,9 @@ Gymnastica</textarea></div>
     <div class="mdl-t">Editar artículo</div>
     <div class="mdl-s" id="editInvSub">—</div>
     <div class="g2"><div class="fg"><label class="flb">Cantidad</label><input class="finp" id="editInvCant" type="number" min="0"></div><div class="fg"><label class="flb">Costo unitario ($)</label><input class="finp" id="editInvCosto" type="number" min="0" step="0.01"></div></div>
-    <div class="fg"><label class="flb">Estado</label><select class="finp" id="editInvEst"><option value="bueno">Bueno</option><option value="regular">Regular</option><option value="dañado">Dañado</option></select></div>
-    <div class="fg"><label class="flb">Próximo mantenimiento</label><input class="finp" id="editInvProx"></div>
+    <div class="g2"><div class="fg"><label class="flb">Estado</label><select class="finp" id="editInvEst"><option value="bueno">Bueno</option><option value="regular">Regular</option><option value="dañado">Dañado</option></select></div><div class="fg"><label class="flb">Horas de uso / semana</label><input class="finp" id="editInvHoras" type="number" min="0" step="1"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Vida útil (meses)</label><input class="finp" id="editInvVida" type="number" min="1"></div><div class="fg"><label class="flb">Nota reemplazo</label><input class="finp" id="editInvProx"></div></div>
+    <div id="editInvDep" style="font-size:12px;color:var(--g600);padding:8px 12px;background:var(--g50);border-radius:8px;margin-bottom:8px"></div>
     <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('editInv')">Cancelar</button><button type="button" class="btn bp" onclick="guardarEditInv()">Guardar cambios</button></div>
   </div>
 </div>
@@ -1613,7 +1616,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.15-nomina2';
+const APP_VERSION='2026.06.16-inventario';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -5070,7 +5073,13 @@ function filasReporteExcel(tab,m){
         {Tipo:'Resumen',Articulo:'Patrimonio total',Cantidad:'—',Estado:'—',Subtotal:formatMxnInv(snap.patrimonioTotal)},
         {Tipo:'Resumen',Articulo:'Operación mensual',Cantidad:'—',Estado:'—',Subtotal:formatMxnInv(snap.operacionMensual)},
       ];
-      const detalle=(snap.articulos||[]).map(a=>({Tipo:'Artículo',Articulo:a.art,Cantidad:a.cant,Estado:a.est,Subtotal:formatMxnInv(a.subtotal)}));
+      const detalle=(DB.inventario||[]).map(i=>{
+        const d=calcDepreciacionInventario(i);
+        return{Tipo:'Artículo',Articulo:i.art,Cantidad:i.cant,Estado:i.est,
+          'Tiempo uso':`${d.mesesUso} meses · ${d.horasAcum} h`,'Depreciación %':d.pctDepreciacion,
+          'Valor residual':formatMxnInv(d.valorResidual*(Number(i.cant)||1)),Reemplazo:d.reemplazoTxt,
+          Subtotal:formatMxnInv(subtotalInventarioItem(i))};
+      });
       const hist=(DB.inventarioMensual||[]).map(h=>({Tipo:'Corte mensual',Articulo:h.periodo,Cantidad:h.piezas,Estado:h.fechaCorte,Subtotal:formatMxnInv(h.patrimonioTotal)}));
       return resumen.concat(detalle,hist);
     }
@@ -5366,6 +5375,61 @@ function renderReportes(){
 function formatMxnInv(n){
   return '$'+(Number(n)||0).toLocaleString('es-MX',{maximumFractionDigits:0});
 }
+const INV_CAT_DEFAULTS={
+  Suelo:{vidaUtilMeses:36,horasSemana:25},Aparatos:{vidaUtilMeses:84,horasSemana:18},
+  Acrobacia:{vidaUtilMeses:60,horasSemana:12},Rítmica:{vidaUtilMeses:36,horasSemana:20},
+  Vestuario:{vidaUtilMeses:24,horasSemana:4},Equipo:{vidaUtilMeses:48,horasSemana:15},
+  Seguridad:{vidaUtilMeses:60,horasSemana:8},Uniformes:{vidaUtilMeses:24,horasSemana:4},
+  Mantenimiento:{vidaUtilMeses:12,horasSemana:10},
+};
+function defaultsInventarioCat(cat){
+  return INV_CAT_DEFAULTS[cat]||{vidaUtilMeses:48,horasSemana:15};
+}
+function parseMesAnioInv(str){
+  const meses={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
+  const m=String(str||'').toLowerCase().match(/(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\s*(\d{4})/);
+  if(!m)return null;
+  return{mes:meses[m[1].slice(0,3)],anio:parseInt(m[2],10)};
+}
+function mesesUsoInventario(item){
+  if(item.mesesUsoManual!=null)return Math.max(0,Number(item.mesesUsoManual)||0);
+  const p=parseMesAnioInv(item.compra);
+  if(!p)return 0;
+  const now=new Date();
+  return Math.max(0,(now.getFullYear()-p.anio)*12+(now.getMonth()-p.mes));
+}
+function calcDepreciacionInventario(item){
+  const def=defaultsInventarioCat(item.cat);
+  const mesesUso=mesesUsoInventario(item);
+  const vidaMeses=Math.max(1,Number(item.vidaUtilMeses)||def.vidaUtilMeses);
+  const horasSem=Math.max(0,Number(item.horasSemana)||def.horasSemana);
+  const horasAcum=Math.round(mesesUso*horasSem*4.33);
+  const vidaHoras=Math.max(1,vidaMeses*horasSem*4.33);
+  let pctMeses=Math.min(100,mesesUso/vidaMeses*100);
+  let pctHoras=horasSem>0?Math.min(100,horasAcum/vidaHoras*100):pctMeses;
+  let pct=Math.max(pctMeses,pctHoras);
+  if(item.est==='dañado')pct=100;
+  else if(item.est==='regular')pct=Math.min(100,pct+12);
+  pct=Math.round(pct);
+  const costo=Number(item.costoUnitario)||0;
+  const valorResidual=Math.round(costo*(1-pct/100));
+  const reemplazar=pct>=80||item.est==='dañado';
+  const mesesRest=Math.max(0,vidaMeses-mesesUso);
+  let reemplazoTxt;
+  if(reemplazar||pct>=100)reemplazoTxt='Reemplazar ya';
+  else if(pct>=60)reemplazoTxt='Próximo trimestre';
+  else if(mesesRest<=6)reemplazoTxt=`~${mesesRest} mes${mesesRest===1?'':'es'}`;
+  else{
+    const d=new Date();d.setMonth(d.getMonth()+mesesRest);
+    reemplazoTxt=d.toLocaleDateString('es-MX',{month:'short',year:'numeric'});
+  }
+  return{mesesUso,horasAcum,pctDepreciacion:pct,valorResidual,reemplazar,reemplazoTxt,pctMeses:Math.round(pctMeses),pctHoras:Math.round(pctHoras)};
+}
+function ensureInventarioItemDep(i){
+  const def=defaultsInventarioCat(i.cat);
+  if(i.vidaUtilMeses===undefined)i.vidaUtilMeses=def.vidaUtilMeses;
+  if(i.horasSemana===undefined)i.horasSemana=def.horasSemana;
+}
 
 function ensureInventario(){
   if(!DB.inventario?.length){
@@ -5384,6 +5448,7 @@ function ensureInventario(){
   DB.inventario.forEach((i,idx)=>{
     if(!i.id)i.id='INV-'+String(idx+1).padStart(3,'0');
     if(i.costoUnitario===undefined)i.costoUnitario=0;
+    ensureInventarioItemDep(i);
   });
   if(!DB.costosGymnastica){
     DB.costosGymnastica={
@@ -5401,19 +5466,25 @@ function subtotalInventarioItem(i){
 
 function calcularTotalesInventario(){
   ensureInventario();
-  const lista=DB.inventario||[];
-  const valorInventario=lista.reduce((s,i)=>s+subtotalInventarioItem(i),0);
+  const lista=(DB.inventario||[]).map(i=>{
+    const dep=calcDepreciacionInventario(i);
+    return{...i,_dep:dep};
+  });
+  const valorCompra=lista.reduce((s,i)=>s+subtotalInventarioItem(i),0);
+  const valorResidual=lista.reduce((s,i)=>s+(Number(i._dep.valorResidual)||0)*(Number(i.cant)||1),0);
+  const valorInventario=valorResidual;
   const piezas=lista.reduce((s,i)=>s+(Number(i.cant)||0),0);
   const bueno=lista.filter(i=>i.est==='bueno').reduce((s,i)=>s+(Number(i.cant)||0),0);
   const regular=lista.filter(i=>i.est==='regular').reduce((s,i)=>s+(Number(i.cant)||0),0);
   const danado=lista.filter(i=>i.est==='dañado').reduce((s,i)=>s+(Number(i.cant)||0),0);
+  const porReemplazar=lista.filter(i=>i._dep.reemplazar).length;
   const cg=DB.costosGymnastica||{};
   const sistemaFijo=Number(cg.sistemaFijo)||0;
   const opMensual=Number(cg.operacionMensual)||0;
-  const patrimonioTotal=valorInventario+sistemaFijo;
+  const patrimonioTotal=valorResidual+sistemaFijo;
   const costoAnualOperacion=opMensual*12;
   const granTotalAnual=patrimonioTotal+costoAnualOperacion;
-  return {lista,valorInventario,piezas,bueno,regular,danado,sistemaFijo,opMensual,patrimonioTotal,costoAnualOperacion,granTotalAnual,cg};
+  return {lista,valorInventario,valorCompra,valorResidual,piezas,bueno,regular,danado,porReemplazar,sistemaFijo,opMensual,patrimonioTotal,costoAnualOperacion,granTotalAnual,cg};
 }
 
 function guardarCostosGymnastica(){
@@ -5439,8 +5510,8 @@ function renderInventario(){
   st('invStatDanado',t.danado);
   st('invStatPiezas',t.piezas);
   st('invStatValor',formatMxnInv(t.valorInventario));
-  st('invSub',`${t.lista.length} artículos · valor inventario ${formatMxnInv(t.valorInventario)}`);
-  st('invTablaSub',`Subtotal equipo: ${formatMxnInv(t.valorInventario)}`);
+  st('invSub',`${t.lista.length} artículos · residual ${formatMxnInv(t.valorResidual)} · compra ${formatMxnInv(t.valorCompra)}${t.porReemplazar?` · ${t.porReemplazar} por reemplazar`:''}`);
+  st('invTablaSub',`Compra: ${formatMxnInv(t.valorCompra)} · Residual: ${formatMxnInv(t.valorResidual)}`);
   st('invDisplayFijo',formatMxnInv(t.sistemaFijo));
   st('invDisplayOp',formatMxnInv(t.opMensual)+' / mes');
   const descF=document.getElementById('invDescFijo');
@@ -5452,9 +5523,13 @@ function renderInventario(){
   if(inpF&&document.activeElement!==inpF)inpF.value=t.sistemaFijo;
   if(inpO&&document.activeElement!==inpO)inpO.value=t.opMensual;
   tb.innerHTML=t.lista.map(i=>{
+    const d=i._dep;
     const estC=i.est==='bueno'?'bg':i.est==='regular'?'by':'br';
     const estT=i.est==='bueno'?'✓ Bueno':i.est==='regular'?'⚠ Regular':'🔴 Dañado';
     const sub=subtotalInventarioItem(i);
+    const depC=d.pctDepreciacion>=80?'br':d.pctDepreciacion>=60?'by':'bg';
+    const resSub=formatMxnInv(d.valorResidual*(Number(i.cant)||1));
+    const reemplazo=i.proximo&&i.proximo!=='Revisión anual'?i.proximo:d.reemplazoTxt;
     const esc=a=>String(a).replace(/'/g,"\\'");
     return `<tr>
       <td style="font-weight:600;color:var(--g900)">${i.art}</td>
@@ -5462,20 +5537,25 @@ function renderInventario(){
       <td style="font-weight:700;text-align:center">${i.cant}</td>
       <td style="font-size:12.5px;color:var(--g600)">${formatMxnInv(i.costoUnitario)}</td>
       <td style="font-weight:800;color:var(--gr700)">${formatMxnInv(sub)}</td>
+      <td style="font-size:11.5px;color:var(--g600)">${d.mesesUso} mes${d.mesesUso===1?'':'es'}<div style="font-size:10px;color:var(--g400)">${d.horasAcum.toLocaleString('es-MX')} h acum.</div></td>
+      <td><span class="badge ${depC}">${d.pctDepreciacion}%</span><div style="font-size:9px;color:var(--g400);margin-top:2px">T${d.pctMeses}·H${d.pctHoras}</div></td>
+      <td style="font-weight:700;color:var(--b700);font-size:12px">${resSub}</td>
       <td><span class="badge ${estC}">${estT}</span></td>
       <td style="color:var(--g500);font-size:12px">${i.compra}</td>
-      <td style="font-size:12px;font-weight:500;color:${i.est==='dañado'?'var(--r600)':'var(--g700)'}">${i.proximo}</td>
+      <td style="font-size:12px;font-weight:600;color:${d.reemplazar?'var(--r600)':'var(--g700)'}">${reemplazo}</td>
       <td><div style="display:flex;gap:4px;flex-wrap:wrap">
         <button type="button" class="btn bw btn-xs" onclick="editarInventario('${esc(i.id)}')">Editar</button>
-        ${i.est!=='bueno'?`<button type="button" class="btn bo btn-xs" onclick="solicitarReemplazoInv('${esc(i.id)}')">Reemplazar</button>`:''}
+        ${d.reemplazar||i.est!=='bueno'?`<button type="button" class="btn bo btn-xs" onclick="solicitarReemplazoInv('${esc(i.id)}')">Reemplazar</button>`:''}
       </div></td>
     </tr>`;
   }).join('');
   const foot=document.getElementById('tbInventarioFoot');
   if(foot){
     foot.innerHTML=`<tr style="background:var(--g50);font-weight:700">
-      <td colspan="4" style="text-align:right;padding:12px 14px;color:var(--g700)">Subtotal inventario físico</td>
-      <td style="padding:12px 14px;font-size:15px;color:var(--b700)">${formatMxnInv(t.valorInventario)}</td>
+      <td colspan="4" style="text-align:right;padding:12px 14px;color:var(--g700)">Total compra / residual</td>
+      <td style="padding:12px 14px;font-size:13px;color:var(--g700)">${formatMxnInv(t.valorCompra)}</td>
+      <td colspan="2"></td>
+      <td style="padding:12px 14px;font-size:15px;color:var(--b700)">${formatMxnInv(t.valorResidual)}</td>
       <td colspan="4"></td>
     </tr>`;
   }
@@ -5550,15 +5630,18 @@ function guardarInventario(){
   if(!art){toast('Ingresa el nombre del artículo','⚠️');return;}
   const cant=parseInt(document.getElementById('invArtCant')?.value,10)||1;
   const costo=parseFloat(document.getElementById('invArtCosto')?.value)||0;
+  const cat=document.getElementById('invArtCat')?.value||'Equipo';
+  const def=defaultsInventarioCat(cat);
+  const vida=parseInt(document.getElementById('invArtVida')?.value,10);
+  const horas=parseInt(document.getElementById('invArtHoras')?.value,10);
   DB.inventario.push({
     id:'inv_'+Date.now(),
-    art,
-    cat:document.getElementById('invArtCat')?.value||'Equipo',
-    cant,
-    costoUnitario:costo,
+    art,cat,cant,costoUnitario:costo,
     est:document.getElementById('invArtEst')?.value||'bueno',
     compra:document.getElementById('invArtCompra')?.value?.trim()||'—',
-    proximo:document.getElementById('invArtProx')?.value?.trim()||'Revisión anual',
+    horasSemana:!isNaN(horas)?horas:def.horasSemana,
+    vidaUtilMeses:!isNaN(vida)?vida:def.vidaUtilMeses,
+    proximo:document.getElementById('invArtProx')?.value?.trim()||'',
   });
   saveDB();closeMdl('newInventario');renderInventario();
   toast('Artículo agregado al inventario','📦');
@@ -5571,9 +5654,21 @@ function editarInventario(id){
   document.getElementById('editInvSub').textContent=item.art;
   document.getElementById('editInvCant').value=item.cant;
   document.getElementById('editInvCosto').value=item.costoUnitario;
+  ensureInventarioItemDep(item);
   document.getElementById('editInvEst').value=item.est||'bueno';
+  document.getElementById('editInvHoras').value=item.horasSemana;
+  document.getElementById('editInvVida').value=item.vidaUtilMeses;
   document.getElementById('editInvProx').value=item.proximo||'';
+  const d=calcDepreciacionInventario(item);
+  const depEl=document.getElementById('editInvDep');
+  if(depEl)depEl.innerHTML=`<strong>Depreciación:</strong> ${d.pctDepreciacion}% · ${d.mesesUso} meses · ${d.horasAcum.toLocaleString('es-MX')} h · Residual ${formatMxnInv(d.valorResidual)} · <span style="color:${d.reemplazar?'var(--r600)':'var(--gr700)'}">${d.reemplazoTxt}</span>`;
   openMdl('editInv');
+}
+function solicitarReemplazoInv(id){
+  const item=DB.inventario?.find(i=>i.id===id);
+  if(!item)return;
+  const d=calcDepreciacionInventario(item);
+  toast(`${item.art}: ${d.pctDepreciacion}% depreciado · ${d.reemplazoTxt}`,'📦');
 }
 
 function guardarEditInv(){
@@ -5582,7 +5677,9 @@ function guardarEditInv(){
   item.cant=parseInt(document.getElementById('editInvCant')?.value,10)||item.cant;
   item.costoUnitario=parseFloat(document.getElementById('editInvCosto')?.value)||item.costoUnitario;
   item.est=document.getElementById('editInvEst')?.value||item.est;
-  item.proximo=document.getElementById('editInvProx')?.value?.trim()||item.proximo;
+  item.horasSemana=parseInt(document.getElementById('editInvHoras')?.value,10)||item.horasSemana;
+  item.vidaUtilMeses=parseInt(document.getElementById('editInvVida')?.value,10)||item.vidaUtilMeses;
+  item.proximo=document.getElementById('editInvProx')?.value?.trim()||'';
   saveDB();closeMdl('editInv');editInvId='';renderInventario();
   toast('Inventario actualizado','✓');
 }
