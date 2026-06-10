@@ -517,7 +517,8 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
       </div>
       <button class="login-btn" type="button" onclick="doLogin()">Entrar al sistema →</button>
       <div id="loginError" style="display:none;margin-top:12px;padding:10px 14px;background:var(--r50);border:1.5px solid var(--r100);border-radius:8px;font-size:12.5px;color:var(--r600);font-weight:500;text-align:center"></div>
-      <div id="cloudStatus" style="margin-top:14px;text-align:center;font-size:11.5px;color:var(--g500);line-height:1.45">☁️ Conectando con la nube…</div>
+      <div id="cloudStatus" style="margin-top:14px;text-align:center;font-size:11.5px;color:var(--g500);line-height:1.45">☁️ Verificando conexión con la nube…</div>
+      <div id="cloudStatusHint" style="margin-top:6px;text-align:center;font-size:10.5px;color:var(--g400);line-height:1.4">Esto no es un botón. Al entrar verás <strong>☁️ Sincronizar</strong> en verde, arriba junto a tu nombre.</div>
       <div class="login-demo" id="loginDemoBlock" style="display:none">
         Acceso de prueba (solo desarrollo):
         <span onclick="quickLogin('admin')">Admin</span> ·
@@ -555,7 +556,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
     </div>
     <div class="role-pill" id="rolePill">Administrador</div>
     <div class="notif-btn" onclick="abrirPanelNotificaciones()" title="Notificaciones">🔔<div class="notif-dot" id="notifDot"></div></div>
-    <button type="button" class="btn bw btn-xs" id="btnCloudSync" onclick="sincronizarNubeAhora()" title="Traer cambios de otros administradores" style="margin-left:6px;padding:5px 10px;font-size:11px;display:none">☁️ Sincronizar</button>
+    <button type="button" id="btnCloudSync" onclick="sincronizarNubeAhora()" title="Subir y bajar datos de todos los administradores" style="margin-left:8px;padding:7px 14px;font-size:12px;font-weight:700;display:none;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 8px rgba(22,163,74,.35)">☁️ Sincronizar</button>
     <span id="cloudStatusApp" style="font-size:10px;color:rgba(255,255,255,.45);margin-left:6px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
     <span id="appVersion" style="font-size:9px;font-weight:600;color:rgba(255,255,255,.35);margin-left:4px"></span>
   </div>
@@ -1573,7 +1574,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.10-prod';
+const APP_VERSION='2026.06.10-sync';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -1827,7 +1828,7 @@ function limpiarSesion(){
   try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}
 }
 
-function entrarSistema(usuario,email){
+async function entrarSistema(usuario,email){
   currentUser=usuario;
   currentUser.loginEmail=email;
   currentRole=usuario.role;
@@ -1836,10 +1837,21 @@ function entrarSistema(usuario,email){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('appMain').style.display='flex';
   buildUI();
-  setCloudStatus(cloudActive?'☁️ Conectado a Supabase':'💾 Solo almacenamiento local',cloudActive?'var(--gr700)':'var(--g500)');
-  if(nubeDisponible()){
-    pullFromCloud(true,false);
-    asegurarSubidaInicialNube();
+  setCloudStatus('☁️ Sincronizando datos…','var(--g500)');
+  if(await asegurarModuloNube()){
+    try{
+      await pullFromCloud(true,false);
+      await asegurarSubidaInicialNube();
+      await syncToCloud();
+      const n=DB.estudiantes.length;
+      setCloudStatus(`☁️ En vivo · ${n} alumno${n===1?'':'s'}`,'var(--gr700)');
+      toast(`Datos sincronizados · ${n} alumno${n===1?'':'s'}`,'☁️');
+    }catch(e){
+      console.warn(e);
+      setCloudStatus('⚠️ Error al sincronizar — pulsa ☁️ Sincronizar','var(--o600)');
+    }
+  }else{
+    setCloudStatus('💾 Solo este navegador (sin nube)','var(--o600)');
   }
   goTo(currentRole==='padre'?'padre':'dashboard');
 }
@@ -6161,7 +6173,23 @@ function setCloudStatus(text,color){
   const app=document.getElementById('cloudStatusApp');
   if(app){app.textContent=msg;app.style.color=col==='var(--gr700)'?'rgba(255,255,255,.55)':col;}
   const btn=document.getElementById('btnCloudSync');
-  if(btn)btn.style.display=cloudActive&&currentUser?'inline-flex':'none';
+  if(btn){
+    const staff=currentUser&&(currentRole==='admin'||currentRole==='operador');
+    btn.style.display=staff?'inline-flex':'none';
+  }
+}
+
+async function asegurarModuloNube(){
+  if(cloudModule?.isCloudEnabled?.())return true;
+  try{
+    await cargarConfigNube();
+    cloudModule=await cargarModuloNube();
+    if(cloudModule?.isCloudEnabled()){
+      cloudActive=true;
+      return true;
+    }
+  }catch(e){console.warn(e);}
+  return false;
 }
 
 function scheduleCloudSync(){
@@ -6254,8 +6282,8 @@ async function asegurarSubidaInicialNube(){
 }
 
 async function sincronizarNubeAhora(){
-  if(!cloudModule?.isCloudEnabled()){
-    toast('Supabase no está configurado en este entorno','⚠️');
+  if(!(await asegurarModuloNube())){
+    toast('Nube no disponible — revisa conexión o recarga con Ctrl+Shift+R','⚠️');
     return;
   }
   cloudActive=true;
@@ -6379,17 +6407,20 @@ async function initPersistence(){
       iniciarRealtimeNube();
       const host=cloudModule.cloudConfigSummary?.()||'';
       const n=DB.estudiantes.length;
-      setCloudStatus(`☁️ Nube conectada (${host}) · ${n} alumno${n===1?'':'s'} sincronizado${n===1?'':'s'}`,'var(--gr700)');
+      setCloudStatus(`☁️ Nube lista · ${n} alumno${n===1?'':'s'} — entra y se sincroniza solo`,'var(--gr700)');
     }else{
-      setCloudStatus('⚠️ Nube no configurada — los datos solo se guardan en este navegador','var(--o600)');
+      setCloudStatus('⚠️ Nube no configurada en el servidor','var(--o600)');
     }
   }catch(e){
     console.warn(e);
-    const det=e?.message?.includes('cloud-config')?'Falta configurar VITE_SUPABASE_* en Vercel':
-      e?.message?.includes('cloud-sync')?'No se pudo cargar el módulo de sincronización':
-      e?.message?.includes('Supabase')?'Supabase no respondió a tiempo':
-      'Revisa la conexión a internet';
-    setCloudStatus(`⚠️ Sin sincronización en la nube (${det})`,'var(--o600)');
+    const det=e?.message?.includes('cloud-config')?'Falta VITE_SUPABASE_* en Vercel':
+      e?.message?.includes('cloud-sync')?'No cargó el módulo de nube':
+      e?.message?.includes('Supabase')?'Supabase no respondió':
+      'Sin conexión';
+    setCloudStatus(`⚠️ Sin nube (${det})`,'var(--o600)');
+  }finally{
+    const hint=document.getElementById('cloudStatusHint');
+    if(hint&&!nubeDisponible())hint.textContent='Sin nube: los datos quedan solo en este navegador.';
   }
   cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
   restaurarSesion();
