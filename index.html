@@ -455,6 +455,12 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nr-tot{margin-left:auto;text-align:right}
 .nr-amount{font-size:19px;font-weight:800;color:var(--g900);letter-spacing:-.5px}
 .nr-lbl{font-size:11px;color:var(--g400);margin-top:1px}
+.nom-ed{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;max-width:360px}
+.nom-ed label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
+.nom-inp{width:100%;padding:6px 8px;border:1.5px solid var(--g200);border-radius:7px;font-size:13px;font-weight:700;font-family:var(--fn);color:var(--g900);background:var(--w)}
+.nom-inp:focus{border-color:var(--b400);outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.12)}
+.nom-eval{font-size:10.5px;color:var(--g500);margin-top:8px;line-height:1.45}
+.nom-eval b{color:var(--g700)}
 
 .emp-sueldo-box{background:var(--g50);border:1.5px solid var(--g200);border-radius:12px;padding:14px 16px}
 .emp-sueldo-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:12.5px;color:var(--g600)}
@@ -714,14 +720,14 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 
     <!-- ─ NÓMINA ─ -->
     <div class="screen" id="nominaScreen">
-      <div class="ph"><div><div class="ph-title">Nómina de Empleados</div><div class="ph-sub" id="nominaPhSub">Sueldo base $350 + bonos — sueldo integrado</div></div><div class="ph-acts"><button class="btn bw" onclick="reporteNomina()">📊 Reporte</button><button class="btn bs" onclick="procesarNominaMes()">💸 Procesar nómina</button><button class="btn bp" onclick="openMdl('newEmpleado')">+ Empleado</button></div></div>
+      <div class="ph"><div><div class="ph-title">Nómina de Empleados</div><div class="ph-sub" id="nominaPhSub">Edita sueldos y bonos · evaluación automática por checador y clases</div></div><div class="ph-acts"><button class="btn bw" onclick="reporteNomina()">📊 Reporte</button><button class="btn bw" onclick="exportarReporteNomina()">📥 Excel</button><button class="btn bo" onclick="evaluarNominaAutomatica()">⟳ Evaluar mes</button><button class="btn bs" onclick="procesarNominaMes()">💸 Procesar nómina</button><button class="btn bp" onclick="openMdl('newEmpleado')">+ Empleado</button></div></div>
       <div class="sr" style="grid-template-columns:repeat(4,1fr)">
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--b50)">👥</div></div><div class="sc-val" style="font-size:22px" id="nomStatEmp">0</div><div class="sc-lbl">Empleados</div></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--p50)">💵</div></div><div class="sc-val" style="font-size:22px" id="nomStatBase">$0</div><div class="sc-lbl">Sueldos base</div></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--gr50)">🏅</div></div><div class="sc-val" style="font-size:22px" id="nomStatBonos">$0</div><div class="sc-lbl">Bonos del mes</div></div>
         <div class="sc"><div class="sc-top"><div class="sc-ico" style="background:var(--o50)">💰</div></div><div class="sc-val" style="font-size:22px" id="nomStatTotal">$0</div><div class="sc-lbl">Nómina total</div></div>
       </div>
-      <div class="card"><div class="card-h"><div class="card-t">Desglose por empleado</div><span class="badge bg">✓ Calculado</span></div><div class="card-b" style="padding:4px 18px" id="nominaL"></div></div>
+      <div class="card"><div class="card-h"><div class="card-t">Desglose por empleado</div><span class="badge bb" id="nominaEvalBadge">Editable</span></div><div class="card-b" style="padding:4px 18px" id="nominaL"></div></div>
     </div>
 
     <!-- ─ COMPETENCIAS ─ -->
@@ -2544,31 +2550,35 @@ function renderNomina(){
   setStat('nomStatBase','$'+sumBase.toLocaleString('es-MX'));
   setStat('nomStatBonos','$'+sumBonos.toLocaleString('es-MX'));
   setStat('nomStatTotal','$'+sumTotal.toLocaleString('es-MX'));
+  const badge=document.getElementById('nominaEvalBadge');
+  if(badge)badge.textContent=lista.some(e=>e.nominaEvalAt)?'Evaluado este mes':'Editable';
   const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  el.innerHTML=lista.map(e=>{
+  el.innerHTML=lista.length?lista.map(e=>{
     const tot=empleadoSueldoTotal(e);
     const id=esc(e.checId||e.n);
+    const evalHtml=e.evalPctAsis!=null?`<div class="nom-eval"><b>Evaluación:</b> Asistencia ${e.evalPctAsis}% · Productividad ${e.evalPctProd||0}%<br>${e.evalDetalleAsis||''}${e.evalDetalleProd?' · '+e.evalDetalleProd:''}</div>`:'';
     return `<div class="nr">
       <div class="nr-av" style="background:${e.c}">${e.n.charAt(0)}</div>
-      <div style="flex:1">
+      <div style="flex:1;min-width:0">
         <div class="nr-name">${e.n}</div>
-        <div class="nr-role">${e.rol}</div>
-        <div class="nr-chips">
-          <span class="chip ch-b">NIP ${e.pinChecador||'—'}</span>
-          <span class="chip ch-b">Base $${(e.base||0).toLocaleString('es-MX')}</span>
-          <span class="chip ch-p">Asistencia $${(e.asis||0).toLocaleString('es-MX')}</span>
-          <span class="chip ch-g">Productividad $${(e.des||0).toLocaleString('es-MX')}</span>
+        <div class="nr-role">${e.rol} · NIP ${e.pinChecador||'—'}</div>
+        <div class="nom-ed">
+          <div><label>Sueldo base</label><input class="nom-inp" type="number" min="0" step="50" value="${e.base||0}" onchange="actualizarNominaCampo('${id}','base',this.value)"></div>
+          <div><label>Bono asistencia</label><input class="nom-inp" type="number" min="0" step="25" value="${e.asis||0}" onchange="actualizarNominaCampo('${id}','asis',this.value)"></div>
+          <div><label>Bono productividad</label><input class="nom-inp" type="number" min="0" step="25" value="${e.des||0}" onchange="actualizarNominaCampo('${id}','des',this.value)"></div>
         </div>
+        ${evalHtml}
       </div>
       <div class="nr-tot">
-        <div class="nr-amount">$${tot.toLocaleString('es-MX')}</div>
-        <div class="nr-lbl">Sueldo integrado total</div>
-        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;min-width:148px">
+        <div class="nr-amount" id="nomTot-${id}">$${tot.toLocaleString('es-MX')}</div>
+        <div class="nr-lbl">Sueldo integrado</div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;min-width:140px">
+          <button type="button" class="btn bo btn-xs" onclick="aplicarEvaluacionNominaEmpleado('${id}')">⟳ Evaluar</button>
           <button type="button" class="btn bw btn-xs" onclick="enviarNominaCanal('${id}','wa')">Enviar WPT</button>
           <button type="button" class="btn bw btn-xs" onclick="enviarNominaCanal('${id}','mail')">Enviar Correo</button>
         </div>
       </div></div>`;
-  }).join('');
+  }).join(''):'<div style="padding:24px;text-align:center;color:var(--g400)">Sin empleados · agrega uno con + Empleado</div>';
 }
 
 function ensureEmpleadosNomina(){
@@ -2576,7 +2586,178 @@ function ensureEmpleadosNomina(){
     if(e.base===undefined)e.base=350;
     if(e.asis===undefined)e.asis=150;
     if(e.des===undefined)e.des=125;
+    if(e.asisMeta===undefined)e.asisMeta=e.asis;
+    if(e.desMeta===undefined)e.desMeta=e.des;
   });
+}
+
+function fechaEnMesActual(fechaStr){
+  if(!fechaStr||!/^\d{4}-\d{2}/.test(fechaStr))return false;
+  const d=new Date();
+  const [y,m]=fechaStr.split('-').map(Number);
+  return y===d.getFullYear()&&m===d.getMonth()+1;
+}
+
+function diasLaborablesMesHastaHoy(){
+  const d=new Date();
+  const y=d.getFullYear(),m=d.getMonth();
+  let n=0;
+  for(let day=1;day<=d.getDate();day++){
+    const wd=new Date(y,m,day).getDay();
+    if(wd>=1&&wd<=6)n++;
+  }
+  return Math.max(n,1);
+}
+
+function horaAMinutos(hora){
+  const h=String(hora||'');
+  const m24=h.match(/^(\d{1,2}):(\d{2})/);
+  if(m24)return parseInt(m24[1],10)*60+parseInt(m24[2],10);
+  const m12=h.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)/i);
+  if(!m12)return null;
+  let hh=parseInt(m12[1],10);
+  const mm=parseInt(m12[2]||'0',10);
+  if(/pm/i.test(m12[3])&&hh<12)hh+=12;
+  if(/am/i.test(m12[3])&&hh===12)hh=0;
+  return hh*60+mm;
+}
+
+function metricasAsistenciaEmpleado(emp){
+  const d=new Date();
+  const anio=d.getFullYear(),mes=d.getMonth();
+  const esperados=diasLaborablesMesHastaHoy();
+  const entradas=(DB.checadas||[]).filter(c=>{
+    if(c.tipo!=='empleado'||c.accion!=='entrada')return false;
+    if(c.personaId!==emp.checId&&c.nombre!==emp.n)return false;
+    const f=c.fecha||'';
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(f))return false;
+    const [y,m]=f.split('-').map(Number);
+    return y===anio&&m===mes+1;
+  });
+  const diasUnicos=new Set(entradas.map(c=>c.fecha));
+  const asistidos=diasUnicos.size;
+  const puntual=entradas.filter(c=>{
+    const mins=horaAMinutos(c.hora);
+    return mins===null||mins<=9*60+45;
+  }).length;
+  const pctAsist=Math.min(100,Math.round(asistidos/esperados*100));
+  const pctPuntual=entradas.length?Math.round(puntual/entradas.length*100):0;
+  const pct=Math.round(pctAsist*0.75+pctPuntual*0.25);
+  return{pct,asistidos,esperados,pctAsist,pctPuntual,detalle:`${asistidos}/${esperados} días laborables · puntualidad ${pctPuntual}%`};
+}
+
+function metricasProductividadEmpleado(emp){
+  const nom=emp.n;
+  const corto=nom.split(' ')[0].toLowerCase();
+  const matchNom=n=>{const s=String(n||'').toLowerCase();return s===nom.toLowerCase()||s.includes(corto);};
+  const pers=(DB.clasesPers||[]).filter(c=>fechaEnMesActual(c.fecha)&&matchNom(c.entrenador)).length;
+  const grupales=DB.empleados.length<=1
+    ?(DB.calendarioGrupal||[]).filter(c=>fechaEnMesActual(c.fecha)).length
+    :0;
+  const clases=pers+grupales;
+  const alumnosActivos=DB.estudiantes.filter(e=>e.activo!==false).length;
+  const pctClases=Math.min(100,Math.round(clases/12*100));
+  const pctAlumnos=Math.min(100,Math.round(alumnosActivos/20*100));
+  const pct=Math.round(pctClases*0.55+pctAlumnos*0.45);
+  return{pct,clases,alumnosActivos,detalle:`${clases} clases · ${alumnosActivos} alumnos activos`};
+}
+
+function aplicarEvaluacionNominaEmpleado(empId,silent){
+  const emp=findEmpleadoNomina(empId);
+  if(!emp)return;
+  ensureEmpleadosNomina();
+  const asisMeta=Number(emp.asisMeta)||150;
+  const desMeta=Number(emp.desMeta)||125;
+  const mA=metricasAsistenciaEmpleado(emp);
+  const mP=metricasProductividadEmpleado(emp);
+  emp.asis=Math.round(asisMeta*mA.pct/100);
+  emp.des=Math.round(desMeta*mP.pct/100);
+  emp.evalPctAsis=mA.pct;
+  emp.evalPctProd=mP.pct;
+  emp.evalDetalleAsis=mA.detalle;
+  emp.evalDetalleProd=mP.detalle;
+  emp.nominaEvalAt=new Date().toISOString();
+  saveDB();
+  renderNomina();
+  if(!silent)toast(`${emp.n}: $${empleadoSueldoTotal(emp).toLocaleString('es-MX')} integrado`,'⟳');
+}
+
+function evaluarNominaAutomatica(){
+  if(!DB.empleados?.length){toast('No hay empleados en nómina','⚠️');return;}
+  ensureEmpleadosNomina();
+  DB.empleados.forEach(e=>aplicarEvaluacionNominaEmpleado(e.checId||e.n,true));
+  saveDB();
+  renderNomina();
+  toast('Bonos ajustados por asistencia (checador) y clases del mes','⟳');
+}
+
+function actualizarNominaCampo(empId,campo,valor){
+  const emp=findEmpleadoNomina(empId);
+  if(!emp)return;
+  const n=Math.max(0,parseInt(String(valor),10)||0);
+  if(campo==='base')emp.base=n;
+  else if(campo==='asis'){emp.asis=n;emp.asisMeta=n;}
+  else if(campo==='des'){emp.des=n;emp.desMeta=n;}
+  saveDB();
+  const tot=empleadoSueldoTotal(emp);
+  const esc=String(empId).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const el=document.getElementById('nomTot-'+esc);
+  if(el)el.textContent='$'+tot.toLocaleString('es-MX');
+  const setStat=(id,v)=>{const x=document.getElementById(id);if(x)x.textContent=v;};
+  let sumBase=0,sumBonos=0,sumTotal=0;
+  DB.empleados.forEach(e=>{
+    sumBase+=Number(e.base)||0;
+    sumBonos+=(Number(e.asis)||0)+(Number(e.des)||0);
+    sumTotal+=empleadoSueldoTotal(e);
+  });
+  setStat('nomStatBase','$'+sumBase.toLocaleString('es-MX'));
+  setStat('nomStatBonos','$'+sumBonos.toLocaleString('es-MX'));
+  setStat('nomStatTotal','$'+sumTotal.toLocaleString('es-MX'));
+}
+
+function filasReporteNomina(){
+  ensureEmpleadosNomina();
+  return(DB.empleados||[]).map(e=>{
+    const t=empleadoSueldoTotal(e);
+    return{
+      Empleado:e.n,Rol:e.rol||'—',NIP:e.pinChecador||'—',
+      'Sueldo base':formatMxnInv(e.base),'Bono asistencia':formatMxnInv(e.asis),'Bono productividad':formatMxnInv(e.des),
+      'Total integrado':formatMxnInv(t),
+      'Eval. asistencia %':e.evalPctAsis!=null?e.evalPctAsis+'%':'—',
+      'Eval. productividad %':e.evalPctProd!=null?e.evalPctProd+'%':'—',
+      DetalleAsistencia:e.evalDetalleAsis||'—',DetalleProductividad:e.evalDetalleProd||'—',
+      WhatsApp:e.tel||'—',Correo:e.email||'—',Periodo:getPeriodoActual()
+    };
+  });
+}
+
+function reporteNomina(){
+  repTabActivo='nomina';
+  goTo('reportes');
+  renderReportes();
+}
+
+function exportarReporteNomina(){
+  const filas=filasReporteNomina();
+  if(!filas.length){toast('No hay empleados para exportar','⚠️');return;}
+  const nombre='nomina-gymnastica-'+getPeriodoActual().replace(/\s+/g,'-')+'.xls';
+  if(typeof exportarExcel==='function')exportarExcel(nombre,filas);
+  else if(typeof exportarCSV==='function')exportarCSV(nombre.replace('.xls','.csv'),filas);
+  else toast('Exportación no disponible','⚠️');
+}
+
+function procesarNominaMes(){
+  if(!DB.empleados?.length){toast('No hay empleados en nómina','⚠️');return;}
+  ensureEmpleadosNomina();
+  let n=0;
+  DB.empleados.forEach(emp=>{
+    crearReciboNominaEmpleado(emp,true);
+    n++;
+  });
+  saveDB();
+  renderNomina();
+  renderRecibos();
+  toast(`Nómina ${getPeriodoActual()} procesada · ${n} recibo${n===1?'':'s'}`,'💸');
 }
 
 function renderComp(){
@@ -4554,10 +4735,7 @@ function filasReporteExcel(tab,m){
         Metodo:c.metodo||'—',Registro:c.registradoPor||'—'
       }));
     case 'nomina':
-      return (DB.empleados||[]).map(e=>{
-        const t=empleadoSueldoTotal(e);
-        return {Empleado:e.n,Rol:e.rol||'—',Base:formatMxnInv(e.base),BonoAsistencia:formatMxnInv(e.asis),BonoProductividad:formatMxnInv(e.des),Total:formatMxnInv(t),WhatsApp:e.tel||'—',Correo:e.email||'—'};
-      });
+      return filasReporteNomina();
     case 'inventario':{
       const snap=snapshotInventarioMensual();
       const resumen=[
@@ -4735,12 +4913,17 @@ function renderRepPanelAsistencia(m){
 
 function renderRepPanelNomina(m){
   return `<div class="card"><div class="card-h"><div class="card-t">Reporte de nómina — ${m.periodo}</div><span class="badge bg">Total ${formatMxnInv(m.nominaTotal)}</span></div><div class="card-b" style="padding:0">
-    <table class="rep-table-mini"><thead><tr><th>Empleado</th><th>Rol</th><th>Base</th><th>Bono asis.</th><th>Bono prod.</th><th>Total</th></tr></thead><tbody>
+    <table class="rep-table-mini"><thead><tr><th>Empleado</th><th>Base</th><th>Bono asis.</th><th>Bono prod.</th><th>Total</th><th>Eval. asis.</th><th>Eval. prod.</th></tr></thead><tbody>
       ${(DB.empleados||[]).map(e=>{
         const t=empleadoSueldoTotal(e);
-        return `<tr><td style="font-weight:600">${e.n}</td><td>${e.rol}</td><td>${formatMxnInv(e.base)}</td><td>${formatMxnInv(e.asis)}</td><td>${formatMxnInv(e.des)}</td><td style="font-weight:800;color:var(--gr700)">${formatMxnInv(t)}</td></tr>`;
+        return `<tr><td style="font-weight:600">${e.n}<div style="font-size:10px;color:var(--g500);font-weight:400">${e.rol||'—'}</div></td><td>${formatMxnInv(e.base)}</td><td>${formatMxnInv(e.asis)}</td><td>${formatMxnInv(e.des)}</td><td style="font-weight:800;color:var(--gr700)">${formatMxnInv(t)}</td><td>${e.evalPctAsis!=null?e.evalPctAsis+'%':'—'}</td><td>${e.evalPctProd!=null?e.evalPctProd+'%':'—'}</td></tr>`;
       }).join('')}
     </tbody></table>
+  </div></div>
+  <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t">Criterios evaluación automática</div></div><div class="card-b" style="font-size:12.5px;color:var(--g600);line-height:1.55">
+    <p><strong>Bono asistencia:</strong> checadas de entrada del mes ÷ días laborables (lun–sáb), con 25% por puntualidad (antes de 9:45).</p>
+    <p style="margin-top:8px"><strong>Bono productividad:</strong> clases personalizadas impartidas + alumnos activos del gimnasio (55% clases / 45% matrícula).</p>
+    <p style="margin-top:8px">Usa <strong>⟳ Evaluar mes</strong> en Nómina para recalcular bonos; los montos siguen siendo editables manualmente.</p>
   </div></div>`;
 }
 
