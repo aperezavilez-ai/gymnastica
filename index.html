@@ -87,6 +87,10 @@ body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(
 .f-inp{width:100%;background:var(--w);border:1.5px solid var(--g200);border-radius:8px;padding:10px 13px;color:var(--g900);font-family:var(--fn);font-size:13px;outline:none;transition:all .2s;box-shadow:var(--sh0);margin-bottom:14px}
 .f-inp:focus{border-color:var(--b400);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
 .f-inp::placeholder{color:var(--g300)}
+.pass-wrap{position:relative;margin-bottom:14px}
+.pass-wrap .f-inp{margin-bottom:0;padding-right:42px}
+.pass-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px 6px;cursor:pointer;color:var(--g400);font-size:16px;line-height:1;border-radius:6px;transition:color .2s}
+.pass-toggle:hover{color:var(--g700)}
 .login-btn{width:100%;padding:12px;background:var(--b600);color:#fff;border:none;border-radius:10px;font-family:var(--fn);font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;box-shadow:0 2px 8px rgba(37,99,235,.35);margin-top:4px}
 .login-btn:hover{background:var(--b700);transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,.4)}
 .login-demo{margin-top:16px;text-align:center;font-size:12px;color:var(--g400)}
@@ -506,7 +510,10 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
       <label class="f-label">Correo electrónico</label>
       <input class="f-inp" id="loginEmail" placeholder="correo@ejemplo.com" value="" autocomplete="username">
       <label class="f-label">Contraseña</label>
-      <input class="f-inp" id="loginPass" type="password" placeholder="Contraseña" value="" autocomplete="current-password">
+      <div class="pass-wrap">
+        <input class="f-inp" id="loginPass" type="password" placeholder="Contraseña" value="" autocomplete="current-password">
+        <button type="button" class="pass-toggle" id="loginPassToggle" onclick="toggleLoginPass()" title="Mostrar contraseña" aria-label="Mostrar contraseña">👁️</button>
+      </div>
       <button class="login-btn" type="button" onclick="doLogin()">Entrar al sistema →</button>
       <div id="loginError" style="display:none;margin-top:12px;padding:10px 14px;background:var(--r50);border:1.5px solid var(--r100);border-radius:8px;font-size:12.5px;color:var(--r600);font-weight:500;text-align:center"></div>
       <div id="cloudStatus" style="margin-top:14px;text-align:center;font-size:11.5px;color:var(--g500)">Sincronización: comprobando…</div>
@@ -1826,6 +1833,17 @@ function showLoginError(msg){
   const el=document.getElementById('loginError');
   el.textContent='⚠ '+msg;
   el.style.display='block';
+}
+
+function toggleLoginPass(){
+  const inp=document.getElementById('loginPass');
+  const btn=document.getElementById('loginPassToggle');
+  if(!inp||!btn)return;
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.textContent=show?'🙈':'👁️';
+  btn.title=show?'Ocultar contraseña':'Mostrar contraseña';
+  btn.setAttribute('aria-label',btn.title);
 }
 
 function buildUI(){
