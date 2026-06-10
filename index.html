@@ -1007,7 +1007,9 @@ Gymnastica</textarea></div>
         </div>
       </div>
       <div class="g2"><div class="fg"><label class="flb">Nombre completo</label><input class="finp" id="estNombre" placeholder="Nombre del alumno"></div><div class="fg"><label class="flb">Fecha de nacimiento</label><input class="finp" id="estNacimiento" type="date"></div></div>
-      <div class="g2"><div class="fg"><label class="flb">Clase</label><select class="finp" id="estClase"><option>Gimnasia Artística</option><option>Gimnasia Rítmica</option><option>Acrobacia</option><option>Pre-escolar</option><option>Parkour</option><option>Gimnasia para Adultos</option></select></div><div class="fg"><label class="flb">Horario</label><select class="finp" id="estHorario"><option>Lun/Mié 4:00pm</option><option>Mar/Jue 5:00pm</option><option>Sábados 10:00am</option></select></div></div>
+      <div class="fg"><label class="flb">Clase</label><select class="finp" id="estClase"><option>Gimnasia Artística</option><option>Gimnasia Rítmica</option><option>Acrobacia</option><option>Pre-escolar</option><option>Parkour</option><option>Gimnasia para Adultos</option></select></div>
+      <div class="g2"><div class="fg"><label class="flb">Día de clase</label><select class="finp" id="estHorarioDia1"><option selected>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Segundo día (opcional)</label><select class="finp" id="estHorarioDia2"><option value="">— Ninguno —</option><option>Lunes</option><option>Martes</option><option selected>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div></div>
+      <div class="fg" style="margin-bottom:0"><label class="flb">Hora de clase</label><input class="finp" id="estHorarioHora" type="time" value="16:00"></div>
       <div class="g2" style="margin-bottom:0"><div class="fg" style="margin-bottom:0"><label class="flb">Tipo de pago</label><select class="finp" id="estTipoPago"><option>Mensualidad</option><option>Clase semanal</option><option>Clase personalizada</option></select></div><div class="fg" style="margin-bottom:0"><label class="flb">Monto</label><input class="finp" id="estMonto" placeholder="$850"></div></div>
       <div class="fg" style="margin-bottom:0;margin-top:12px"><label class="flb">NIP checador</label><div class="finp" style="background:var(--p50);border-color:var(--p100);color:var(--p600);font-weight:600;font-size:12.5px">Se generará automáticamente al registrar (4 dígitos únicos)</div></div>
     </div>
@@ -1024,9 +1026,14 @@ Gymnastica</textarea></div>
   <div class="mdl">
     <div class="mdl-t">Inscripción</div>
     <div class="mdl-s">Inscribe un alumno activo a clase o evento</div>
-    <div class="fg"><label class="flb">Alumno</label><select class="finp" id="insAlumno"></select></div>
-    <div class="g2"><div class="fg"><label class="flb">Tipo de inscripción</label><select class="finp" id="insTipo"><option>Mensualidad</option><option>Clase semanal</option><option>Competencia</option><option>Clase personalizada</option></select></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="insPeriodo" placeholder="Jul 2026"></div></div>
+    <div class="fg"><label class="flb">Alumno</label><select class="finp" id="insAlumno" onchange="cargarHorarioInscripcion()"></select></div>
+    <div class="g2"><div class="fg"><label class="flb">Tipo de inscripción</label><select class="finp" id="insTipo" onchange="toggleInscripcionTipo()"><option>Mensualidad</option><option>Clase semanal</option><option>Competencia</option><option>Clase personalizada</option></select></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="insPeriodo" placeholder="Jul 2026"></div></div>
     <div class="g2"><div class="fg"><label class="flb">Clase / Evento</label><select class="finp" id="insClase"><option>Gimnasia Artística</option><option>Gimnasia Rítmica</option><option>Acrobacia</option><option>Pre-escolar</option><option>Copa Regional</option></select></div><div class="fg"><label class="flb">Monto</label><input class="finp" id="insMonto" placeholder="$850"></div></div>
+    <div id="insHorarioWrap">
+      <div class="g2"><div class="fg"><label class="flb">Día de clase</label><select class="finp" id="insHorarioDia1"><option selected>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Segundo día (opcional)</label><select class="finp" id="insHorarioDia2"><option value="">— Ninguno —</option><option>Lunes</option><option>Martes</option><option selected>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div></div>
+      <div class="fg"><label class="flb">Hora de clase</label><input class="finp" id="insHorarioHora" type="time" value="16:00"></div>
+      <div class="fg" style="margin-bottom:0"><button type="button" class="btn bw btn-sm" id="insBtnCalendario" onclick="irCalendarioInscripcion('ins')">📅 Ver calendario de clases grupales</button></div>
+    </div>
     <div class="fg"><label class="flb">Notas (opcional)</label><input class="finp" id="insNotas" placeholder="Observaciones..."></div>
     <div class="mdl-act"><button class="btn bw" onclick="closeMdl('newInscripcion')">Cancelar</button><button class="btn bs" onclick="guardarInscripcion()">Confirmar inscripción</button></div>
   </div>
@@ -1037,9 +1044,14 @@ Gymnastica</textarea></div>
   <div class="mdl">
     <div class="mdl-t">Re-inscripción</div>
     <div class="mdl-s">Reactiva un alumno y actualiza su clase</div>
-    <div class="fg"><label class="flb">Alumno</label><select class="finp" id="reinsAlumno"></select></div>
-    <div class="g2"><div class="fg"><label class="flb">Clase</label><select class="finp" id="reinsClase"><option>Gimnasia Artística</option><option>Gimnasia Rítmica</option><option>Acrobacia</option><option>Pre-escolar</option></select></div><div class="fg"><label class="flb">Horario</label><select class="finp" id="reinsHorario"><option>Lun/Mié 4:00pm</option><option>Mar/Jue 5:00pm</option><option>Sábados 10:00am</option><option>Sábados 9:00am</option></select></div></div>
-    <div class="g2"><div class="fg"><label class="flb">Mensualidad</label><input class="finp" id="reinsMonto" placeholder="$850"></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="reinsPeriodo" placeholder="Jul 2026"></div></div>
+    <div class="fg"><label class="flb">Alumno</label><select class="finp" id="reinsAlumno" onchange="cargarHorarioReinscripcion()"></select></div>
+    <div class="g2"><div class="fg"><label class="flb">Tipo de re-inscripción</label><select class="finp" id="reinsTipo" onchange="toggleReinscripcionTipo()"><option>Mensualidad</option><option>Clase semanal</option><option>Clase personalizada</option></select></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="reinsPeriodo" placeholder="Jul 2026"></div></div>
+    <div id="reinsHorarioWrap">
+      <div class="g2"><div class="fg"><label class="flb">Clase</label><select class="finp" id="reinsClase"><option>Gimnasia Artística</option><option>Gimnasia Rítmica</option><option>Acrobacia</option><option>Pre-escolar</option></select></div><div class="fg"><label class="flb">Hora de clase</label><input class="finp" id="reinsHorarioHora" type="time" value="16:00"></div></div>
+      <div class="g2"><div class="fg"><label class="flb">Día de clase</label><select class="finp" id="reinsHorarioDia1"><option selected>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Segundo día (opcional)</label><select class="finp" id="reinsHorarioDia2"><option value="">— Ninguno —</option><option>Lunes</option><option>Martes</option><option selected>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div></div>
+      <div class="fg"><label class="flb">Mensualidad</label><input class="finp" id="reinsMonto" placeholder="$850"></div>
+      <div class="fg" style="margin-bottom:0"><button type="button" class="btn bw btn-sm" id="reinsBtnCalendario" onclick="irCalendarioInscripcion('reins')">📅 Ver calendario de clases grupales</button></div>
+    </div>
     <div class="mdl-act"><button class="btn bw" onclick="closeMdl('newReinscripcion')">Cancelar</button><button class="btn bp" style="background:var(--o600)" onclick="guardarReinscripcion()">Confirmar re-inscripción</button></div>
   </div>
 </div>
@@ -1300,7 +1312,8 @@ Gymnastica</textarea></div>
     <div class="mdl-s" id="editEstSub">—</div>
     <div class="fg"><label class="flb">Nombre</label><input class="finp" id="editEstNombre"></div>
     <div class="g2"><div class="fg"><label class="flb">Edad</label><input class="finp" id="editEstEdad" type="number" min="3" max="99"></div><div class="fg"><label class="flb">Clase</label><select class="finp" id="editEstClase"><option>Gimnasia Artística</option><option>Gimnasia para Adultos</option><option>Parkour</option><option>Gimnasia Rítmica</option><option>Pre-escolar</option></select></div></div>
-    <div class="g2"><div class="fg"><label class="flb">Horario</label><input class="finp" id="editEstHorario"></div><div class="fg"><label class="flb">Mensualidad</label><input class="finp" id="editEstMonto"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Día de clase</label><select class="finp" id="editEstHorarioDia1"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div><div class="fg"><label class="flb">Segundo día (opcional)</label><select class="finp" id="editEstHorarioDia2"><option value="">— Ninguno —</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Hora de clase</label><input class="finp" id="editEstHorarioHora" type="time"></div><div class="fg"><label class="flb">Mensualidad</label><input class="finp" id="editEstMonto"></div></div>
     <div class="g2"><div class="fg"><label class="flb">Tutor</label><input class="finp" id="editEstTutor"></div><div class="fg"><label class="flb">Teléfono</label><input class="finp" id="editEstTel" type="tel"></div></div>
     <div class="fg"><label class="flb">Correo tutor</label><input class="finp" id="editEstEmail" type="email"></div>
     <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('editEst')">Cancelar</button><button type="button" class="btn bp" onclick="guardarEditEst()">Guardar cambios</button></div>
@@ -2034,7 +2047,7 @@ function editarEstudiante(idx){
   document.getElementById('editEstNombre').value=e.n;
   document.getElementById('editEstEdad').value=e.edad||'';
   document.getElementById('editEstClase').value=e.clase||'Gimnasia Artística';
-  document.getElementById('editEstHorario').value=e.horario||'';
+  llenarHorarioForm('editEstHorario',e.horario||'');
   document.getElementById('editEstMonto').value=e.monto||'';
   document.getElementById('editEstTutor').value=e.tutor||'';
   document.getElementById('editEstTel').value=e.tel||'';
@@ -2051,7 +2064,7 @@ function guardarEditEst(){
   e.n=nombre;
   e.edad=parseInt(document.getElementById('editEstEdad')?.value,10)||e.edad;
   e.clase=document.getElementById('editEstClase')?.value||e.clase;
-  e.horario=document.getElementById('editEstHorario')?.value||e.horario;
+  e.horario=leerHorarioForm('editEstHorario')||e.horario;
   let m=document.getElementById('editEstMonto')?.value?.trim()||e.monto;
   if(m&&!String(m).startsWith('$'))m='$'+m;
   e.monto=m;
@@ -2857,11 +2870,15 @@ function openMdl(id){
       llenarSelectAlumnos('insAlumno',true);
       const per=document.getElementById('insPeriodo');
       if(per&&!per.value)per.value='Jul 2026';
+      toggleInscripcionTipo();
+      cargarHorarioInscripcion();
     }
     if(id==='newReinscripcion'){
       llenarSelectAlumnos('reinsAlumno',false);
       const per=document.getElementById('reinsPeriodo');
       if(per&&!per.value)per.value='Jul 2026';
+      toggleReinscripcionTipo();
+      cargarHorarioReinscripcion();
     }
     if(id==='newRecibo'){
       llenarSelectAlumnos('recAlumno',true);
@@ -2872,6 +2889,136 @@ function openMdl(id){
   }else toast('Función disponible próximamente','ℹ️');
 }
 function closeMdl(id){document.getElementById('mdl-'+id)?.classList.remove('open');}
+
+const HORARIO_DIAS_SEMANA=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const HORARIO_DIA_ABR={Lunes:'Lun',Martes:'Mar','Miércoles':'Mié',Jueves:'Jue',Viernes:'Vie','Sábado':'Sáb'};
+const HORARIO_ABR_DIA={lun:'Lunes',mar:'Martes',mie:'Miércoles','mié':'Miércoles',miercoles:'Miércoles',jue:'Jueves',vie:'Viernes',sab:'Sábado','sáb':'Sábado',sabado:'Sábado','sábado':'Sábado',sabados:'Sábado','sábados':'Sábado'};
+
+function formatearHora12Desde24(hhmm){
+  if(!hhmm)return'';
+  const p=String(hhmm).split(':');
+  let h=parseInt(p[0],10);const m=parseInt(p[1]||'0',10);
+  if(isNaN(h))return'';
+  const ap=h>=12?'pm':'am';
+  h=h%12||12;
+  return m?`${h}:${String(m).padStart(2,'0')}${ap}`:`${h}${ap}`;
+}
+
+function parsearHora12a24(str){
+  const s=String(str||'').trim().toLowerCase().replace(/\./g,'');
+  const m=s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.?m|p\.?m)?/);
+  if(!m)return'16:00';
+  let h=parseInt(m[1],10);const min=parseInt(m[2]||'0',10);
+  const ap=m[3]||'';
+  if(ap.startsWith('p')&&h<12)h+=12;
+  else if(ap.startsWith('a')&&h===12)h=0;
+  else if(!ap&&h>=1&&h<=7)h+=12;
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+
+function formatearHorarioAlumno(dia1,dia2,hora24){
+  const dias=[dia1].filter(Boolean);
+  if(dia2&&dia2!==dia1)dias.push(dia2);
+  const diasStr=dias.map(d=>HORARIO_DIA_ABR[d]||d).join('/');
+  const horaStr=formatearHora12Desde24(hora24);
+  return horaStr?`${diasStr} ${horaStr}`:diasStr||'—';
+}
+
+function parsearHorarioAlumno(str){
+  const raw=String(str||'').trim();
+  if(!raw||raw==='—')return{dia1:'Lunes',dia2:'',hora:'16:00'};
+  const parts=raw.split(/\s+/);
+  let horaPart=parts[parts.length-1];
+  let diasPart=parts.slice(0,-1).join(' ');
+  if(!/\d|am|pm/i.test(horaPart)){diasPart=raw;horaPart='';}
+  const diasTok=diasPart.split(/[,/·\s]+/).filter(Boolean);
+  const dia1=HORARIO_ABR_DIA[diasTok[0]?.toLowerCase().replace(/\./g,'')]||diasTok[0]||'Lunes';
+  let dia2='';
+  if(diasTok[1])dia2=HORARIO_ABR_DIA[diasTok[1].toLowerCase().replace(/\./g,'')]||diasTok[1];
+  return{dia1,dia2,hora:parsearHora12a24(horaPart)||'16:00'};
+}
+
+function leerHorarioForm(prefix){
+  const dia1=document.getElementById(prefix+'Dia1')?.value||'Lunes';
+  const dia2=document.getElementById(prefix+'Dia2')?.value||'';
+  const hora=document.getElementById(prefix+'Hora')?.value||'16:00';
+  return formatearHorarioAlumno(dia1,dia2,hora);
+}
+
+function llenarHorarioForm(prefix,horarioStr){
+  const{dia1,dia2,hora}=parsearHorarioAlumno(horarioStr);
+  const d1=document.getElementById(prefix+'Dia1');
+  const d2=document.getElementById(prefix+'Dia2');
+  const h=document.getElementById(prefix+'Hora');
+  if(d1)d1.value=HORARIO_DIAS_SEMANA.includes(dia1)?dia1:'Lunes';
+  if(d2)d2.value=HORARIO_DIAS_SEMANA.includes(dia2)?dia2:'';
+  if(h)h.value=hora;
+}
+
+function cargarHorarioReinscripcion(){
+  const alumno=document.getElementById('reinsAlumno')?.value;
+  const e=DB.estudiantes.find(x=>x.n===alumno);
+  if(!e)return;
+  llenarHorarioForm('reinsHorario',e.horario||'');
+  const cl=document.getElementById('reinsClase');
+  if(cl&&e.clase)cl.value=e.clase;
+  const m=document.getElementById('reinsMonto');
+  if(m&&e.monto)m.value=e.monto;
+}
+
+function cargarHorarioInscripcion(){
+  const alumno=document.getElementById('insAlumno')?.value;
+  const est=DB.estudiantes.find(e=>e.n===alumno);
+  if(!est)return;
+  llenarHorarioForm('insHorario',est.horario||'');
+  const cl=document.getElementById('insClase');
+  if(cl&&est.clase)cl.value=est.clase;
+  const m=document.getElementById('insMonto');
+  if(m&&est.monto)m.value=est.monto;
+}
+
+function esInscripcionPersonalizada(modal){
+  const id=modal==='ins'?'insTipo':'reinsTipo';
+  return document.getElementById(id)?.value==='Clase personalizada';
+}
+
+function actualizarBotonCalendarioInscripcion(modal){
+  const esPers=esInscripcionPersonalizada(modal);
+  const btn=document.getElementById(modal==='ins'?'insBtnCalendario':'reinsBtnCalendario');
+  if(!btn)return;
+  btn.textContent=esPers?'⭐ Ir a clases personalizadas':'📅 Ver calendario de clases grupales';
+}
+
+function toggleInscripcionTipo(){
+  const tipo=document.getElementById('insTipo')?.value||'';
+  const esComp=tipo==='Competencia';
+  const wrap=document.getElementById('insHorarioWrap');
+  if(wrap)wrap.style.display=esComp?'none':'block';
+  actualizarBotonCalendarioInscripcion('ins');
+}
+
+function toggleReinscripcionTipo(){
+  actualizarBotonCalendarioInscripcion('reins');
+}
+
+function irCalendarioInscripcion(modal){
+  const esPers=esInscripcionPersonalizada(modal);
+  const alumno=document.getElementById(modal==='ins'?'insAlumno':'reinsAlumno')?.value;
+  const clase=document.getElementById(modal==='ins'?'insClase':'reinsClase')?.value;
+  const horario=leerHorarioForm(modal==='ins'?'insHorario':'reinsHorario');
+  closeMdl(modal==='ins'?'newInscripcion':'newReinscripcion');
+  calTabActivo=esPers?'pers':'grupal';
+  goTo('calendario');
+  setCalTab(calTabActivo);
+  if(esPers){
+    toast(alumno?'Calendario de clases personalizadas':'Abre el calendario de clases personalizadas','⭐');
+    if(alumno)setTimeout(()=>abrirAgendarClase('pers',alumno,null,horario),350);
+  }else{
+    toast('Calendario de clases grupales','📅');
+    if(clase&&clase!=='Copa Regional')setTimeout(()=>abrirAgendarClase('grupal',null,clase,horario),350);
+  }
+}
+
 function edadDesdeNacimiento(val){
   if(!val)return 10;
   const n=new Date(val);
@@ -2893,7 +3040,7 @@ function guardarEst(){
     n:nombre,
     edad:edadDesdeNacimiento(document.getElementById('estNacimiento')?.value),
     clase:document.getElementById('estClase')?.value||'Gimnasia Artística',
-    horario:document.getElementById('estHorario')?.value||'—',
+    horario:leerHorarioForm('estHorario'),
     monto,
     est:'pendiente',
     tutor:document.getElementById('estTutor')?.value?.trim()||'—',
@@ -2922,6 +3069,7 @@ function guardarInscripcion(){
   const est=DB.estudiantes.find(e=>e.n===alumno);
   if(est){
     est.clase=clase;
+    if(tipo!=='Competencia')est.horario=leerHorarioForm('insHorario');
     est.est='pendiente';
     est.monto=monto;
   }
@@ -2940,7 +3088,7 @@ function guardarReinscripcion(){
   if(!e){toast('Selecciona un alumno','⚠️');return;}
   e.activo=true;
   e.clase=document.getElementById('reinsClase')?.value||e.clase;
-  e.horario=document.getElementById('reinsHorario')?.value||e.horario;
+  e.horario=leerHorarioForm('reinsHorario')||e.horario;
   let monto=document.getElementById('reinsMonto')?.value?.trim()||e.monto;
   if(monto&&!String(monto).startsWith('$'))monto='$'+monto;
   e.monto=monto;
@@ -4739,7 +4887,7 @@ function prepararModalAgendarClase(){
   toggleAgendarClaseTipo();
 }
 
-function abrirAgendarClase(tipo,alumnoPrefill){
+function abrirAgendarClase(tipo,alumnoPrefill,clasePrefill,horarioStr){
   const t=tipo||calTabActivo||'grupal';
   const sel=document.getElementById('agendarClaseTipo');
   if(sel)sel.value=t==='pers'?'pers':'grupal';
@@ -4747,6 +4895,24 @@ function abrirAgendarClase(tipo,alumnoPrefill){
   if(alumnoPrefill){
     const a=document.getElementById('agendarPersAlumno');
     if(a)a.value=alumnoPrefill;
+  }
+  if(horarioStr){
+    const parsed=parsearHorarioAlumno(horarioStr);
+    if(t==='pers'){
+      const d=document.getElementById('agendarPersDia');
+      if(d&&parsed.dia1)d.value=parsed.dia1;
+      const hr=document.getElementById('agendarPersHora');
+      if(hr&&parsed.hora)hr.value=formatearHora12Desde24(parsed.hora);
+    }
+  }
+  if(clasePrefill){
+    const n=document.getElementById('agendarGrupalNombre');
+    if(n)n.value=clasePrefill;
+    const parsed=parsearHorarioAlumno(horarioStr||'');
+    const d=document.getElementById('agendarGrupalDia');
+    if(d&&parsed.dia1)d.value=parsed.dia1;
+    const hr=document.getElementById('agendarGrupalHora');
+    if(hr&&parsed.hora)hr.value=formatearHora12Desde24(parsed.hora);
   }
   openMdl('agendarClase');
 }
