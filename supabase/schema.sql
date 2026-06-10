@@ -30,3 +30,7 @@ values
   ('db', '{}'::jsonb),
   ('usuarios', '{}'::jsonb)
 on conflict (id) do nothing;
+
+-- Tiempo real: varios admins/operadores ven cambios al instante
+-- (Si falla, activa la tabla en Supabase → Database → Replication)
+alter publication supabase_realtime add table public.gymnastica_store;

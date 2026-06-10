@@ -71,3 +71,22 @@ export async function pushRemoteState(db, usuarios) {
   if (error) throw error;
   return true;
 }
+
+export function subscribeRemoteChanges(onChange) {
+  const sb = getClient();
+  if (!sb) return null;
+
+  const channel = sb
+    .channel('gymnastica-store-live')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'gymnastica_store' },
+      (payload) => {
+        const row = payload.new || payload.old;
+        if (row?.id === 'db') onChange(row);
+      }
+    )
+    .subscribe();
+
+  return channel;
+}

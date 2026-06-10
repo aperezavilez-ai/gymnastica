@@ -1837,7 +1837,7 @@ function entrarSistema(usuario,email){
   document.getElementById('appMain').style.display='flex';
   buildUI();
   setCloudStatus(cloudActive?'☁️ Conectado a Supabase':'💾 Solo almacenamiento local',cloudActive?'var(--gr700)':'var(--g500)');
-  if(cloudActive)pullFromCloudIfNewer(true);
+  if(nubeDisponible())pullFromCloud(true,false);
   goTo(currentRole==='padre'?'padre':'dashboard');
 }
 
@@ -1952,6 +1952,7 @@ function renderSbNavItem(m){
 
 // ═══════ NAV ═══════
 function goTo(view,btn,sbIt){
+  if(currentUser&&nubeDisponible())pullFromCloud(true,false);
   if(currentRole==='padre'&&view!=='padre')view='padre';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   const sc=document.getElementById(view+'Screen');
@@ -5979,6 +5980,25 @@ let cloudActive=false;
 let cloudSyncTimer=null;
 let cloudPullTimer=null;
 let cloudDbUpdatedAt=null;
+let lastRemoteFingerprint=null;
+let cloudRealtimeChannel=null;
+let cloudPullEnCurso=false;
+let syncEnCurso=false;
+let lastLocalSaveAt=0;
+
+function nubeDisponible(){
+  return !!(cloudModule?.isCloudEnabled());
+}
+
+function fingerprintRemoto(db,updatedAt){
+  if(!db)return String(updatedAt||'');
+  const est=(db.estudiantes||[]).map(e=>`${e.pinChecador||e.checId||e.n}:${e.n}`).sort().join(';');
+  const pag=(db.pagos||[]).length;
+  const emp=(db.empleados||[]).length;
+  const chec=(db.checadas||[]).length;
+  const cal=((db.calendarioGrupal||[]).length+(db.clasesPers||[]).length);
+  return `${updatedAt}|e:${est}|p:${pag}|m:${emp}|c:${chec}|k:${cal}`;
+}
 
 function mergeRecords(a,b,keyFn){
   const map=new Map();
@@ -6118,6 +6138,7 @@ function loadUsers(){
 }
 
 function saveDB(){
+  lastLocalSaveAt=Date.now();
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}
   catch(e){toast('No se pudieron guardar los datos','⚠️');}
   scheduleCloudSync();
@@ -6141,13 +6162,16 @@ function setCloudStatus(text,color){
 }
 
 function scheduleCloudSync(){
-  if(!cloudActive||!cloudModule)return;
+  if(!nubeDisponible())return;
+  cloudActive=true;
   clearTimeout(cloudSyncTimer);
-  cloudSyncTimer=setTimeout(syncToCloud,600);
+  cloudSyncTimer=setTimeout(syncToCloud,400);
 }
 
 async function syncToCloud(){
-  if(!cloudActive||!cloudModule)return;
+  if(!nubeDisponible())return;
+  cloudActive=true;
+  syncEnCurso=true;
   try{
     const remote=await cloudModule.fetchRemoteState();
     if(remote?.db)mergeDbForPush(DB,remote.db);
@@ -6155,41 +6179,53 @@ async function syncToCloud(){
     await cloudModule.pushRemoteState(DB,usuariosParaNube());
     const after=await cloudModule.fetchRemoteState();
     marcarCloudActualizado(after?.dbUpdatedAt||new Date().toISOString());
-    setCloudStatus(`☁️ Sincronizado · ${DB.estudiantes.length} alumnos`,'var(--gr700)');
+    if(after?.db)lastRemoteFingerprint=fingerprintRemoto(after.db,after.dbUpdatedAt);
+    setCloudStatus(`☁️ En vivo · ${DB.estudiantes.length} alumnos`,'var(--gr700)');
   }catch(e){
     console.warn(e);
     setCloudStatus('⚠️ Error al sincronizar con la nube','var(--r600)');
+  }finally{
+    syncEnCurso=false;
   }
 }
 
-async function pullFromCloudIfNewer(silent){
-  if(!cloudModule?.isCloudEnabled())return false;
+async function pullFromCloud(silent,force){
+  if(!nubeDisponible())return false;
+  if(cloudPullEnCurso||syncEnCurso)return false;
+  if(!force&&Date.now()-lastLocalSaveAt<1500)return false;
+  cloudPullEnCurso=true;
   try{
     const remote=await cloudModule.fetchRemoteState();
-    const hasDb=remote?.db&&Object.keys(remote.db).length>0;
+    const hasDb=remote?.db&&typeof remote.db==='object';
     if(!hasDb)return false;
-    const nRemoto=(remote.db.estudiantes||[]).length;
-    const nLocal=DB.estudiantes.length;
-    const cambioCantidad=nRemoto!==nLocal;
-    if(!cambioCantidad&&!cloudAtEsMasReciente(remote.dbUpdatedAt)&&cloudDbUpdatedAt)return false;
+    const fp=fingerprintRemoto(remote.db,remote.dbUpdatedAt);
+    if(!force&&fp===lastRemoteFingerprint)return false;
     mergeDbFromRemote(DB,remote.db);
     if(remote.usuarios)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
     localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
     marcarCloudActualizado(remote.dbUpdatedAt);
+    lastRemoteFingerprint=fp;
     cloudActive=true;
     if(currentUser){
       renderAll();
-      if(!silent)toast('Datos actualizados desde la nube','☁️');
+      if(!silent)toast('Datos actualizados','☁️');
     }
-    setCloudStatus('☁️ Sincronizado con Supabase','var(--gr700)');
+    const n=DB.estudiantes.length;
+    setCloudStatus(`☁️ En vivo · ${n} alumno${n===1?'':'s'}`,'var(--gr700)');
     return true;
   }catch(e){
     console.warn(e);
     if(!silent)setCloudStatus('⚠️ Error al traer datos de la nube','var(--r600)');
     return false;
+  }finally{
+    cloudPullEnCurso=false;
   }
+}
+
+function pullFromCloudIfNewer(silent){
+  return pullFromCloud(silent,false);
 }
 
 async function sincronizarNubeAhora(){
@@ -6206,6 +6242,7 @@ async function sincronizarNubeAhora(){
     await cloudModule.pushRemoteState(DB,usuariosParaNube());
     const after=await cloudModule.fetchRemoteState();
     marcarCloudActualizado(after?.dbUpdatedAt||new Date().toISOString());
+    if(after?.db)lastRemoteFingerprint=fingerprintRemoto(after.db,after.dbUpdatedAt);
     if(currentUser)renderAll();
     toast(`Sincronizado · ${DB.estudiantes.length} alumnos en nube`,'☁️');
     setCloudStatus(`☁️ Sincronizado · ${DB.estudiantes.length} alumnos`,'var(--gr700)');
@@ -6229,7 +6266,10 @@ async function loadFromCloud(){
       localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
       localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
     }
-    if(remote?.dbUpdatedAt)marcarCloudActualizado(remote.dbUpdatedAt);
+    if(remote?.dbUpdatedAt){
+      marcarCloudActualizado(remote.dbUpdatedAt);
+      lastRemoteFingerprint=fingerprintRemoto(remote.db,remote.dbUpdatedAt);
+    }
     cloudActive=true;
     setCloudStatus('☁️ Conectado a Supabase','var(--gr700)');
     return true;
@@ -6242,10 +6282,22 @@ async function loadFromCloud(){
 
 function iniciarAutoPullNube(){
   if(cloudPullTimer)clearInterval(cloudPullTimer);
-  cloudPullTimer=setInterval(()=>pullFromCloudIfNewer(true),30000);
+  cloudPullTimer=setInterval(()=>pullFromCloud(true,false),5000);
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&currentUser)pullFromCloudIfNewer(true);
+    if(document.visibilityState==='visible'&&currentUser)pullFromCloud(true,false);
   });
+  window.addEventListener('focus',()=>{
+    if(currentUser)pullFromCloud(true,false);
+  });
+}
+
+function iniciarRealtimeNube(){
+  if(!cloudModule?.subscribeRemoteChanges||cloudRealtimeChannel)return;
+  try{
+    cloudRealtimeChannel=cloudModule.subscribeRemoteChanges(()=>{
+      if(currentUser)pullFromCloud(true,false);
+    });
+  }catch(e){console.warn('Realtime',e);}
 }
 
 function conTimeout(promise,ms,msg){
@@ -6295,8 +6347,10 @@ async function initPersistence(){
     await cargarConfigNube();
     cloudModule=await cargarModuloNube();
     if(cloudModule.isCloudEnabled()){
+      cloudActive=true;
       await conTimeout(loadFromCloud(),15000,'Supabase');
       iniciarAutoPullNube();
+      iniciarRealtimeNube();
       const host=cloudModule.cloudConfigSummary?.()||'';
       const n=DB.estudiantes.length;
       setCloudStatus(`☁️ Nube conectada (${host}) · ${n} alumno${n===1?'':'s'} sincronizado${n===1?'':'s'}`,'var(--gr700)');
