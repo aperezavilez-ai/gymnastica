@@ -25,13 +25,18 @@ export async function fetchRemoteState() {
   const sb = getClient();
   if (!sb) return null;
 
-  const { data, error } = await sb.from('gymnastica_store').select('id, data');
+  const { data, error } = await sb.from('gymnastica_store').select('id, data, updated_at');
   if (error) throw error;
 
   const rows = data || [];
-  const db = rows.find((r) => r.id === 'db')?.data;
-  const usuarios = rows.find((r) => r.id === 'usuarios')?.data;
-  return { db, usuarios };
+  const dbRow = rows.find((r) => r.id === 'db');
+  const usersRow = rows.find((r) => r.id === 'usuarios');
+  return {
+    db: dbRow?.data,
+    usuarios: usersRow?.data,
+    dbUpdatedAt: dbRow?.updated_at || null,
+    usuariosUpdatedAt: usersRow?.updated_at || null,
+  };
 }
 
 export async function pushRemoteState(db, usuarios) {

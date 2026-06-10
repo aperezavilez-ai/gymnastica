@@ -547,6 +547,8 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
     </div>
     <div class="role-pill" id="rolePill">Administrador</div>
     <div class="notif-btn" onclick="abrirPanelNotificaciones()" title="Notificaciones">🔔<div class="notif-dot" id="notifDot"></div></div>
+    <button type="button" class="btn bw btn-xs" id="btnCloudSync" onclick="sincronizarNubeAhora()" title="Traer cambios de otros administradores" style="margin-left:6px;padding:5px 10px;font-size:11px;display:none">☁️ Sincronizar</button>
+    <span id="cloudStatusApp" style="font-size:10px;color:rgba(255,255,255,.45);margin-left:6px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
     <span id="appVersion" style="font-size:9px;font-weight:600;color:rgba(255,255,255,.35);margin-left:4px"></span>
   </div>
   <div class="tb-brand-right" onclick="showLogin()" title="GYMNASTICA">
@@ -1815,6 +1817,8 @@ function doLogin(){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('appMain').style.display='flex';
   buildUI();
+  setCloudStatus(cloudActive?'☁️ Conectado a Supabase':'💾 Solo almacenamiento local',cloudActive?'var(--gr700)':'var(--g500)');
+  if(cloudActive)pullFromCloudIfNewer(true);
   goTo(currentRole==='padre'?'padre':'dashboard');
 }
 
@@ -5919,9 +5923,61 @@ function toast(msg,ico='✓'){
 // ═══════ PERSISTENCIA (local + Supabase) ═══════
 const STORAGE_KEY='gymnastica_db_v1';
 const USERS_KEY='gymnastica_users_v1';
+const CLOUD_AT_KEY='gymnastica_cloud_at';
 let cloudModule=null;
 let cloudActive=false;
 let cloudSyncTimer=null;
+let cloudPullTimer=null;
+let cloudDbUpdatedAt=null;
+
+function mergeRecords(a,b,keyFn){
+  const map=new Map();
+  [...(a||[]),...(b||[])].forEach(item=>{
+    if(!item)return;
+    const k=keyFn(item);
+    if(!k)return;
+    map.set(k,map.has(k)?{...map.get(k),...item}:item);
+  });
+  return [...map.values()];
+}
+
+function mergeDbArrays(target,remote,remoteWins){
+  if(!remote||!target)return;
+  const m=(a,b,k)=>remoteWins?mergeRecords(a,b,k):mergeRecords(b,a,k);
+  target.estudiantes=m(target.estudiantes,remote.estudiantes,e=>e.pinChecador||e.checId||e.n);
+  target.pagos=m(target.pagos,remote.pagos,p=>p.id);
+  target.recibos=m(target.recibos,remote.recibos,r=>r.folio||r.id);
+  target.empleados=m(target.empleados,remote.empleados,e=>e.checId||e.pinChecador||e.n);
+  target.checadas=m(target.checadas,remote.checadas,c=>c.id||(c.fecha+'|'+c.hora+'|'+c.nombre));
+  target.calendarioGrupal=m(target.calendarioGrupal,remote.calendarioGrupal,c=>c.id);
+  target.clasesPers=m(target.clasesPers,remote.clasesPers,c=>c.id);
+  target.competencias=m(target.competencias,remote.competencias,c=>c.n||c.id);
+  target.promos=m(target.promos,remote.promos,p=>p.id||p.n);
+  target.registrosMedicos=m(target.registrosMedicos,remote.registrosMedicos,r=>r.id);
+  target.logros=m(target.logros,remote.logros,l=>l.id);
+  target.inventario=m(target.inventario,remote.inventario,i=>i.id||i.art);
+  target.transferencias=m(target.transferencias,remote.transferencias,t=>t.id);
+  if(remote.cuentas?.length)target.cuentas=m(target.cuentas,remote.cuentas,c=>c.id);
+  if(remote.inventarioMensual?.length)target.inventarioMensual=m(target.inventarioMensual,remote.inventarioMensual,x=>x.periodo);
+  if(remote.costosGymnastica)target.costosGymnastica=remoteWins?{...target.costosGymnastica,...remote.costosGymnastica}:{...remote.costosGymnastica,...target.costosGymnastica};
+  if(remote.config)target.config=remoteWins?{...target.config,...remote.config}:{...remote.config,...target.config};
+  if(remote.historialAnual)target.historialAnual=remoteWins?{...target.historialAnual,...remote.historialAnual}:{...remote.historialAnual,...target.historialAnual};
+}
+
+function mergeDbFromRemote(target,remote){mergeDbArrays(target,remote,true);}
+function mergeDbForPush(local,remote){mergeDbArrays(local,remote,false);}
+
+function marcarCloudActualizado(at){
+  cloudDbUpdatedAt=at||new Date().toISOString();
+  try{localStorage.setItem(CLOUD_AT_KEY,cloudDbUpdatedAt);}catch(e){}
+}
+
+function cloudAtEsMasReciente(remoto){
+  if(!remoto)return false;
+  const local=cloudDbUpdatedAt||localStorage.getItem(CLOUD_AT_KEY);
+  if(!local)return true;
+  return new Date(remoto)>new Date(local);
+}
 
 function applyDbSnapshot(saved){
   if(!saved)return;
@@ -6024,10 +6080,14 @@ function saveUsers(){
 }
 
 function setCloudStatus(text,color){
+  const msg=text||'';
+  const col=color||'var(--g500)';
   const el=document.getElementById('cloudStatus');
-  if(!el)return;
-  el.textContent=text;
-  el.style.color=color||'var(--g500)';
+  if(el){el.textContent=msg;el.style.color=col;}
+  const app=document.getElementById('cloudStatusApp');
+  if(app){app.textContent=msg;app.style.color=col==='var(--gr700)'?'rgba(255,255,255,.55)':col;}
+  const btn=document.getElementById('btnCloudSync');
+  if(btn)btn.style.display=cloudActive&&currentUser?'inline-flex':'none';
 }
 
 function scheduleCloudSync(){
@@ -6039,11 +6099,65 @@ function scheduleCloudSync(){
 async function syncToCloud(){
   if(!cloudActive||!cloudModule)return;
   try{
+    const remote=await cloudModule.fetchRemoteState();
+    if(remote?.db)mergeDbForPush(DB,remote.db);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
     await cloudModule.pushRemoteState(DB,usuariosParaNube());
+    marcarCloudActualizado(new Date().toISOString());
     setCloudStatus('☁️ Sincronizado con Supabase','var(--gr700)');
   }catch(e){
     console.warn(e);
     setCloudStatus('⚠️ Error al sincronizar con la nube','var(--r600)');
+  }
+}
+
+async function pullFromCloudIfNewer(silent){
+  if(!cloudModule?.isCloudEnabled())return false;
+  try{
+    const remote=await cloudModule.fetchRemoteState();
+    const hasDb=remote?.db&&Object.keys(remote.db).length>0;
+    if(!hasDb)return false;
+    if(!cloudAtEsMasReciente(remote.dbUpdatedAt)&&cloudDbUpdatedAt)return false;
+    mergeDbFromRemote(DB,remote.db);
+    if(remote.usuarios)applyUsersSnapshot(remote.usuarios);
+    ensureUsuariosCredenciales();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+    localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
+    marcarCloudActualizado(remote.dbUpdatedAt);
+    cloudActive=true;
+    if(currentUser){
+      renderAll();
+      if(!silent)toast('Datos actualizados desde la nube','☁️');
+    }
+    setCloudStatus('☁️ Sincronizado con Supabase','var(--gr700)');
+    return true;
+  }catch(e){
+    console.warn(e);
+    if(!silent)setCloudStatus('⚠️ Error al traer datos de la nube','var(--r600)');
+    return false;
+  }
+}
+
+async function sincronizarNubeAhora(){
+  if(!cloudModule?.isCloudEnabled()){
+    toast('Supabase no está configurado en este entorno','⚠️');
+    return;
+  }
+  cloudActive=true;
+  setCloudStatus('☁️ Sincronizando…','var(--g500)');
+  try{
+    const remote=await cloudModule.fetchRemoteState();
+    if(remote?.db)mergeDbForPush(DB,remote.db);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+    await cloudModule.pushRemoteState(DB,usuariosParaNube());
+    marcarCloudActualizado(new Date().toISOString());
+    if(currentUser)renderAll();
+    toast('Sincronizado con la nube','☁️');
+    setCloudStatus('☁️ Sincronizado con Supabase','var(--gr700)');
+  }catch(e){
+    console.warn(e);
+    setCloudStatus('⚠️ Error al sincronizar con la nube','var(--r600)');
+    toast('No se pudo sincronizar','⚠️');
   }
 }
 
@@ -6053,13 +6167,14 @@ async function loadFromCloud(){
     const remote=await cloudModule.fetchRemoteState();
     const hasDb=remote?.db&&Object.keys(remote.db).length>0;
     const hasUsers=remote?.usuarios&&Object.keys(remote.usuarios).length>0;
-    if(hasDb)applyDbSnapshot(remote.db);
+    if(hasDb)mergeDbFromRemote(DB,remote.db);
     if(hasUsers)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
     if(hasDb||hasUsers){
       localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
       localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
     }
+    if(remote?.dbUpdatedAt)marcarCloudActualizado(remote.dbUpdatedAt);
     cloudActive=true;
     setCloudStatus('☁️ Conectado a Supabase','var(--gr700)');
     return true;
@@ -6068,6 +6183,14 @@ async function loadFromCloud(){
     setCloudStatus('⚠️ Supabase configurado pero sin conexión','var(--o600)');
     return false;
   }
+}
+
+function iniciarAutoPullNube(){
+  if(cloudPullTimer)clearInterval(cloudPullTimer);
+  cloudPullTimer=setInterval(()=>pullFromCloudIfNewer(true),30000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&currentUser)pullFromCloudIfNewer(true);
+  });
 }
 
 async function initPersistence(){
@@ -6096,6 +6219,7 @@ async function initPersistence(){
     cloudModule=await import('./js/cloud.js');
     if(cloudModule.isCloudEnabled()){
       await loadFromCloud();
+      iniciarAutoPullNube();
     }else{
       setCloudStatus('💾 Solo almacenamiento local (.env sin Supabase)','var(--g500)');
     }
@@ -6103,6 +6227,7 @@ async function initPersistence(){
     console.warn(e);
     setCloudStatus('💾 Solo almacenamiento local','var(--g500)');
   }
+  cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
   document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('loginPass')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   const ver=document.getElementById('appVersion');
