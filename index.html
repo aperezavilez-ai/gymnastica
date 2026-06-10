@@ -1616,7 +1616,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-inventario';
+const APP_VERSION='2026.06.16-cal';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -2201,8 +2201,9 @@ function guardarEditEst(){
   e.tutor=document.getElementById('editEstTutor')?.value||e.tutor;
   e.tel=document.getElementById('editEstTel')?.value||e.tel;
   e.email=document.getElementById('editEstEmail')?.value?.trim()||'';
+  const calN=sincronizarHorarioAlumnoCalendario(e);
   saveDB();closeMdl('editEst');renderAll();
-  toast('Datos del alumno actualizados','✓');
+  toast(calN?`Alumno actualizado · ${calN} clase${calN===1?'':'s'} en calendario`:'Datos del alumno actualizados','✓');
 }
 
 function renderEst(){
@@ -3611,6 +3612,73 @@ function primerSlotHorario(horarioStr){
   const slots=parsearHorarioAlumno(horarioStr);
   return slots[0]||{dia:'Lunes',hora:'16:00'};
 }
+function esClasePersonalizadaTipo(tipo){
+  return String(tipo||'').toLowerCase().includes('personalizada');
+}
+function fechasCalendarioSlot(dia,semanas=8){
+  const target=CAL_DIAS_SEM_FULL.indexOf(dia);
+  if(target<0)return[];
+  const out=[];
+  const start=new Date();
+  for(let i=0;i<semanas*7+7&&out.length<semanas;i++){
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+    if(d.getDay()!==target)continue;
+    if(d.getFullYear()!==calAnioActual())continue;
+    out.push(isoFecha(d.getFullYear(),d.getMonth(),d.getDate()));
+  }
+  return out;
+}
+function entrenadorDefaultCalendario(){
+  const emp=(DB.empleados||[]).find(e=>typeof tipoNominaEmpleado==='function'&&tipoNominaEmpleado(e)==='entrenador');
+  return emp?.n||(DB.empleados?.[0]?.n)||'Entrenador';
+}
+function sincronizarHorarioAlumnoCalendario(est,opts={}){
+  if(!est?.n||!est.horario||est.horario==='—')return 0;
+  ensureCalendarioData();
+  const slots=parsearHorarioAlumno(est.horario);
+  if(!slots.length)return 0;
+  const tipo=opts.tipoPago||est.tipoPago||'Mensualidad';
+  const pers=esClasePersonalizadaTipo(tipo);
+  let n=0;
+  const ent=entrenadorDefaultCalendario();
+  if(pers){
+    DB.clasesPers=(DB.clasesPers||[]).filter(c=>!(c.autoRegistro&&c.alumno===est.n));
+    slots.forEach(slot=>{
+      const hora=formatearHora12Desde24(slot.hora);
+      fechasCalendarioSlot(slot.dia,8).forEach(fecha=>{
+        if(DB.clasesPers.some(c=>c.alumno===est.n&&c.fecha===fecha&&c.hora===hora))return;
+        DB.clasesPers.push({
+          id:'cp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
+          fecha,alumno:est.n,hora,entrenador:ent,duracion:'60 min',
+          c:est.c||'#a855f7',autoRegistro:true
+        });
+        n++;
+      });
+    });
+  }else{
+    const clase=est.clase||'Gimnasia Artística';
+    slots.forEach(slot=>{
+      const hora=formatearHora12Desde24(slot.hora);
+      fechasCalendarioSlot(slot.dia,8).forEach(fecha=>{
+        if(DB.calendarioGrupal.some(c=>c.fecha===fecha&&c.hora===hora&&c.nombre===clase))return;
+        const live=alumnosEnClaseCal(clase).length;
+        DB.calendarioGrupal.push({
+          id:'cg_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
+          fecha,hora,nombre:clase,alumnos:live,max:20,
+          c:colorParaClaseGrupal(clase),autoRegistro:true
+        });
+        n++;
+      });
+    });
+    DB.calendarioGrupal.forEach(c=>{
+      const match=String(c.nombre||'').toLowerCase()===String(clase).toLowerCase()
+        ||String(clase).toLowerCase().includes(String(c.nombre||'').toLowerCase());
+      if(match)c.alumnos=alumnosEnClaseCal(c.nombre).length;
+    });
+  }
+  return n;
+}
 
 function cargarHorarioReinscripcion(){
   const alumno=document.getElementById('reinsAlumno')?.value;
@@ -3693,12 +3761,13 @@ function guardarEst(){
   let monto=document.getElementById('estMonto')?.value?.trim()||'$850';
   if(monto&&!monto.startsWith('$'))monto='$'+monto;
   const colors=['#3b82f6','#a855f7','#22c55e','#f97316','#ef4444','#06b6d4'];
-  DB.estudiantes.push({
+  const tipoPago=document.getElementById('estTipoPago')?.value||'Mensualidad';
+  const horario=leerHorarioForm('estHorario');
+  const est={
     n:nombre,
     edad:edadDesdeNacimiento(document.getElementById('estNacimiento')?.value),
     clase:document.getElementById('estClase')?.value||'Gimnasia Artística',
-    horario:leerHorarioForm('estHorario'),
-    monto,
+    horario,tipoPago,monto,
     est:'pendiente',
     tutor:document.getElementById('estTutor')?.value?.trim()||'—',
     tel:document.getElementById('estTel')?.value?.trim()||'—',
@@ -3708,11 +3777,14 @@ function guardarEst(){
     checId:'est_'+Date.now(),
     pinChecador:generarPinChecador('estudiante'),
     selfie:document.getElementById('estSelfieData')?.value||''
-  });
-  const pin=DB.estudiantes[DB.estudiantes.length-1].pinChecador;
+  };
+  DB.estudiantes.push(est);
+  const pin=est.pinChecador;
+  const calN=sincronizarHorarioAlumnoCalendario(est,{tipoPago});
   saveDB();closeMdl('newEst');renderAll();
   detenerCamaraSelfie();
-  toast(`Alumno registrado · NIP checador: ${pin}`,'✓');
+  const calMsg=calN?` · ${calN} clase${calN===1?'':'s'} en calendario`:'';
+  toast(`Alumno registrado · NIP ${pin}${calMsg}`,'✓');
 }
 
 function guardarInscripcion(){
@@ -3724,9 +3796,14 @@ function guardarInscripcion(){
   if(!alumno){toast('Selecciona un alumno','⚠️');return;}
   if(!monto.startsWith('$'))monto='$'+monto;
   const est=DB.estudiantes.find(e=>e.n===alumno);
+  let calN=0;
   if(est){
     est.clase=clase;
-    if(tipo!=='Competencia')est.horario=leerHorarioForm('insHorario');
+    if(tipo!=='Competencia'){
+      est.horario=leerHorarioForm('insHorario');
+      est.tipoPago=tipo;
+      calN=sincronizarHorarioAlumnoCalendario(est,{tipoPago:tipo});
+    }
     est.est='pendiente';
     est.monto=monto;
   }
@@ -3736,7 +3813,7 @@ function guardarInscripcion(){
     fecha:'—',est:'pendiente',cuenta:'principal'
   });
   saveDB();closeMdl('newInscripcion');renderAll();
-  toast(`Inscripción de ${alumno} registrada`,'✓');
+  toast(calN?`Inscripción de ${alumno} · ${calN} clases en calendario`:`Inscripción de ${alumno} registrada`,'✓');
 }
 
 function guardarReinscripcion(){
@@ -3746,10 +3823,13 @@ function guardarReinscripcion(){
   e.activo=true;
   e.clase=document.getElementById('reinsClase')?.value||e.clase;
   e.horario=leerHorarioForm('reinsHorario')||e.horario;
+  const reinsTipo=document.getElementById('reinsTipo')?.value;
+  if(reinsTipo)e.tipoPago=reinsTipo;
   let monto=document.getElementById('reinsMonto')?.value?.trim()||e.monto;
   if(monto&&!String(monto).startsWith('$'))monto='$'+monto;
   e.monto=monto;
   e.est='pendiente';
+  const calN=sincronizarHorarioAlumnoCalendario(e,{tipoPago:e.tipoPago});
   const periodo=document.getElementById('reinsPeriodo')?.value?.trim()||'Jul 2026';
   DB.pagos.push({
     id:'p'+Date.now(),
@@ -3757,7 +3837,7 @@ function guardarReinscripcion(){
     fecha:'—',est:'pendiente',cuenta:'principal'
   });
   saveDB();closeMdl('newReinscripcion');renderAll();
-  toast(`${e.n} re-inscrito correctamente`,'✓');
+  toast(calN?`${e.n} re-inscrito · ${calN} clases en calendario`:`${e.n} re-inscrito correctamente`,'✓');
 }
 
 function guardarEmpleado(){
