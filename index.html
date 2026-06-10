@@ -1576,7 +1576,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.10-auto';
+const APP_VERSION='2026.06.10-nube';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -1842,9 +1842,9 @@ async function entrarSistema(usuario,email){
   setCloudSyncVisual('syncing');
   if(await asegurarModuloNube()){
     try{
-      await pullFromCloud(true,false);
-      await asegurarSubidaInicialNube();
-      await syncToCloud();
+      await pullFromCloud(true,true);
+      const rem=await cloudModule.fetchRemoteState();
+      if(contarDatosRemotos(rem?.db)===0&&contarDatosLocales()>0)await syncToCloud();
       setCloudSyncVisual('live');
     }catch(e){
       console.warn(e);
@@ -6156,7 +6156,13 @@ function saveDB(){
   lastLocalSaveAt=Date.now();
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}
   catch(e){toast('No se pudieron guardar los datos','⚠️');}
-  scheduleCloudSync();
+  subirANubeAhora();
+}
+
+async function subirANubeAhora(){
+  if(!nubeDisponible()){scheduleCloudSync();return;}
+  clearTimeout(cloudSyncTimer);
+  try{await syncToCloud();}catch(e){console.warn(e);scheduleCloudSync();}
 }
 
 function saveUsers(){
@@ -6238,7 +6244,11 @@ async function pullFromCloud(silent,force){
     if(!hasDb)return false;
     const fp=fingerprintRemoto(remote.db,remote.dbUpdatedAt);
     if(!force&&fp===lastRemoteFingerprint)return false;
-    mergeDbFromRemote(DB,remote.db);
+    if(force||cloudAtEsMasReciente(remote.dbUpdatedAt)){
+      applyDbSnapshot(remote.db);
+    }else{
+      mergeDbFromRemote(DB,remote.db);
+    }
     if(remote.usuarios)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
@@ -6317,7 +6327,7 @@ async function loadFromCloud(){
     const remote=await cloudModule.fetchRemoteState();
     const hasDb=remote?.db&&Object.keys(remote.db).length>0;
     const hasUsers=remote?.usuarios&&Object.keys(remote.usuarios).length>0;
-    if(hasDb)mergeDbFromRemote(DB,remote.db);
+    if(hasDb)applyDbSnapshot(remote.db);
     if(hasUsers)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
     if(hasDb||hasUsers){
@@ -6340,7 +6350,7 @@ async function loadFromCloud(){
 
 function iniciarAutoPullNube(){
   if(cloudPullTimer)clearInterval(cloudPullTimer);
-  cloudPullTimer=setInterval(()=>pullFromCloud(true,false),5000);
+  cloudPullTimer=setInterval(()=>pullFromCloud(true,false),3000);
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'&&currentUser)pullFromCloud(true,false);
   });
@@ -6406,7 +6416,6 @@ async function initPersistence(){
     if(cloudModule.isCloudEnabled()){
       cloudActive=true;
       await conTimeout(loadFromCloud(),15000,'Supabase');
-      await asegurarSubidaInicialNube();
       iniciarAutoPullNube();
       iniciarRealtimeNube();
     }
