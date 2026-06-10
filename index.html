@@ -1573,7 +1573,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.05-prod';
+const APP_VERSION='2026.06.10-prod';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -1837,7 +1837,10 @@ function entrarSistema(usuario,email){
   document.getElementById('appMain').style.display='flex';
   buildUI();
   setCloudStatus(cloudActive?'☁️ Conectado a Supabase':'💾 Solo almacenamiento local',cloudActive?'var(--gr700)':'var(--g500)');
-  if(nubeDisponible())pullFromCloud(true,false);
+  if(nubeDisponible()){
+    pullFromCloud(true,false);
+    asegurarSubidaInicialNube();
+  }
   goTo(currentRole==='padre'?'padre':'dashboard');
 }
 
@@ -6228,6 +6231,28 @@ function pullFromCloudIfNewer(silent){
   return pullFromCloud(silent,false);
 }
 
+function contarDatosLocales(){
+  return (DB.estudiantes||[]).length+(DB.pagos||[]).length+(DB.empleados||[]).length;
+}
+
+function contarDatosRemotos(db){
+  if(!db||typeof db!=='object'||!Object.keys(db).length)return 0;
+  return (db.estudiantes||[]).length+(db.pagos||[]).length+(db.empleados||[]).length;
+}
+
+async function asegurarSubidaInicialNube(){
+  if(!nubeDisponible())return;
+  try{
+    const remote=await cloudModule.fetchRemoteState();
+    const localN=contarDatosLocales();
+    const remotoN=contarDatosRemotos(remote?.db);
+    if(localN>0&&(remotoN===0||localN>remotoN)){
+      await syncToCloud();
+      if(currentUser)renderAll();
+    }
+  }catch(e){console.warn('subida inicial nube',e);}
+}
+
 async function sincronizarNubeAhora(){
   if(!cloudModule?.isCloudEnabled()){
     toast('Supabase no está configurado en este entorno','⚠️');
@@ -6349,6 +6374,7 @@ async function initPersistence(){
     if(cloudModule.isCloudEnabled()){
       cloudActive=true;
       await conTimeout(loadFromCloud(),15000,'Supabase');
+      await asegurarSubidaInicialNube();
       iniciarAutoPullNube();
       iniciarRealtimeNube();
       const host=cloudModule.cloudConfigSummary?.()||'';
