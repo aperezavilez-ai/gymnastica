@@ -250,6 +250,9 @@ select.finp::placeholder,input.finp::placeholder{color:var(--g300)}
 .horario-slots{padding:10px 12px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px}
 .horario-slot-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px}
 .horario-slot-row .fg{margin-bottom:0}
+.cal-slot{position:relative;padding-right:26px!important}
+.cal-slot-del{position:absolute;top:6px;right:6px;width:20px;height:20px;border:1px solid var(--r100);border-radius:50%;background:var(--r50);color:var(--r600);font-size:11px;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;padding:0;transition:all .15s}
+.cal-slot-del:hover{background:var(--r100);border-color:var(--r200);transform:scale(1.05)}
 label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;display:block}
 
 /* ─── TOAST ─── */
@@ -4045,18 +4048,19 @@ function setCalTab(tab){
 function renderCalGrid(data,gridId,tipo){
   const grid=document.getElementById(gridId);
   if(!grid)return;
-  grid.innerHTML=data.map(d=>`
+  const esc=n=>String(n).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  grid.innerHTML=data.map((d,diaIdx)=>`
     <div style="background:var(--w);border:1.5px solid var(--g200);border-radius:12px;overflow:hidden;box-shadow:var(--sh0)">
       <div style="padding:10px 12px;border-bottom:1px solid var(--g100);background:${tipo==='pers'?'var(--p50)':'var(--g50)'}">
         <div style="font-size:13px;font-weight:700;color:var(--g900)">${d.dia}</div>
         <div style="font-size:11px;color:var(--g400)">${d.fecha}</div>
       </div>
       <div style="padding:8px">
-        ${d.clases.map(c=>{
+        ${d.clases.map((c,claseIdx)=>{
           if(tipo==='pers'){
-            const esc=n=>String(n).replace(/'/g,"\\'");
             return `
-        <div onclick="verClasePers('${esc(c.alumno)}','${esc(c.hora)}','${esc(c.entrenador)}','${esc(c.duracion)}','${c.c}')" style="margin-bottom:6px;padding:8px 10px;border-radius:8px;background:${c.c}18;border-left:3px solid ${c.c};cursor:pointer;transition:all .15s" onmouseover="this.style.background='${c.c}28'" onmouseout="this.style.background='${c.c}18'">
+        <div class="cal-slot" onclick="verClasePers('${esc(c.alumno)}','${esc(c.hora)}','${esc(c.entrenador)}','${esc(c.duracion)}','${c.c}')" style="margin-bottom:6px;padding:8px 10px;border-radius:8px;background:${c.c}18;border-left:3px solid ${c.c};cursor:pointer;transition:all .15s" onmouseover="this.style.background='${c.c}28'" onmouseout="this.style.background='${c.c}18'">
+          <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('pers',${diaIdx},${claseIdx})">✕</button>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
             <div style="font-size:11px;font-weight:700;color:${c.c}">${c.hora}</div>
             <span class="cal-pers-badge">1:1</span>
@@ -4070,7 +4074,8 @@ function renderCalGrid(data,gridId,tipo){
           const cap=c.max||20;
           const pct=cap?Math.min(100,Math.round(live/cap*100)):0;
           return `
-        <div onclick="verClase('${String(c.nombre).replace(/'/g,"\\'")}','${c.hora}',${live},${cap})" style="margin-bottom:6px;padding:8px 10px;border-radius:8px;background:${c.c}15;border-left:3px solid ${c.c};cursor:pointer;transition:all .15s" onmouseover="this.style.background='${c.c}25'" onmouseout="this.style.background='${c.c}15'">
+        <div class="cal-slot" onclick="verClase('${esc(c.nombre)}','${esc(c.hora)}',${live},${cap})" style="margin-bottom:6px;padding:8px 10px;border-radius:8px;background:${c.c}15;border-left:3px solid ${c.c};cursor:pointer;transition:all .15s" onmouseover="this.style.background='${c.c}25'" onmouseout="this.style.background='${c.c}15'">
+          <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('grupal',${diaIdx},${claseIdx})">✕</button>
           <div style="font-size:11px;font-weight:700;color:${c.c}">${c.hora}</div>
           <div style="font-size:12px;font-weight:600;color:var(--g800);margin:2px 0">${c.nombre}</div>
           <div style="font-size:10px;color:var(--g500)">${live}/${cap} alumnos</div>
@@ -4080,6 +4085,24 @@ function renderCalGrid(data,gridId,tipo){
         ${d.clases.length===0?'<div style="font-size:11px;color:var(--g300);text-align:center;padding:8px">Sin clases</div>':''}
       </div>
     </div>`).join('');
+}
+
+function eliminarClaseCalendario(tipo,diaIdx,claseIdx){
+  ensureCalendarioData();
+  const arr=tipo==='pers'?DB.clasesPers:DB.calendarioGrupal;
+  const dia=arr[diaIdx];
+  const c=dia?.clases?.[claseIdx];
+  if(!c)return;
+  const label=tipo==='pers'?c.alumno:c.nombre;
+  if(!confirm(`¿Eliminar "${label}" — ${c.hora} del calendario?`))return;
+  dia.clases.splice(claseIdx,1);
+  saveDB();
+  renderCalendario();
+  const detTit=tipo==='pers'?document.getElementById('calPersDetalleTitulo'):document.getElementById('calDetalleTitulo');
+  const detBody=tipo==='pers'?document.getElementById('calPersDetalleBody'):document.getElementById('calDetalleBody');
+  if(detTit)detTit.textContent=tipo==='pers'?'Selecciona una clase personalizada':'Selecciona una clase para ver los alumnos';
+  if(detBody)detBody.innerHTML=`<div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">${tipo==='pers'?'⭐':'📅'}</div><div>Haz clic en una clase del calendario</div></div>`;
+  toast('Clase eliminada del calendario','✓');
 }
 
 function actualizarCalSub(){
