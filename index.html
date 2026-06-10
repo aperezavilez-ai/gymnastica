@@ -455,7 +455,8 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nr-tot{margin-left:auto;text-align:right}
 .nr-amount{font-size:19px;font-weight:800;color:var(--g900);letter-spacing:-.5px}
 .nr-lbl{font-size:11px;color:var(--g400);margin-top:1px}
-.nom-ed{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;max-width:360px}
+.nom-ed{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px;margin-top:10px;max-width:100%}
+.nom-ed-sueldo{margin-top:6px}
 .nom-ed label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
 .nom-inp{width:100%;padding:6px 8px;border:1.5px solid var(--g200);border-radius:7px;font-size:13px;font-weight:700;font-family:var(--fn);color:var(--g900);background:var(--w)}
 .nom-inp:focus{border-color:var(--b400);outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.12)}
@@ -464,7 +465,6 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nom-cfg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 12px}
 .nom-cfg label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
 .nom-cfg-wide{grid-column:1/-1}
-.nom-ed-meta{margin-top:6px;max-width:480px}
 .nom-horario{margin-top:8px;padding:10px 12px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200);max-width:100%}
 .nom-horario>label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:8px}
 .nom-dias{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%}
@@ -1613,7 +1613,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.15-nomina';
+const APP_VERSION='2026.06.15-nomina2';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -2813,14 +2813,14 @@ function renderNomina(){
         <div class="nr-name">${e.n}</div>
         <div class="nr-role">${e.rol} · NIP ${e.pinChecador||'—'}</div>
         <div class="nom-ed">
-          <div><label>Sueldo diario</label><input class="nom-inp" type="number" min="0" step="25" value="${e.base||0}" onchange="actualizarNominaCampo('${id}','base',this.value)"></div>
-          <div><label>Bono asis. / semana</label><input class="nom-inp" type="number" min="0" step="25" value="${e.asis||0}" onchange="actualizarNominaCampo('${id}','asis',this.value)"></div>
-          <div><label>Bono prod. / semana</label><input class="nom-inp" type="number" min="0" step="25" value="${e.des||0}" onchange="actualizarNominaCampo('${id}','des',this.value)"></div>
-        </div>
-        <div class="nom-ed nom-ed-meta">
           <div><label>Tipo evaluación</label><select class="nom-inp" onchange="actualizarNominaCampo('${id}','tipoNomina',this.value)"><option value="entrenador" ${tipo==='entrenador'?'selected':''}>Entrenador</option><option value="operativo" ${tipo==='operativo'?'selected':''}>Operativo</option></select></div>
           <div><label>Meta clases / semana</label><input class="nom-inp" type="number" min="0" value="${metas.metaClases}" ${tipo==='operativo'?'disabled':''} onchange="actualizarNominaCampo('${id}','metaClasesEmp',this.value)"></div>
           <div><label>Meta alumnos</label><input class="nom-inp" type="number" min="1" value="${metas.metaAlumnos}" onchange="actualizarNominaCampo('${id}','metaAlumnosEmp',this.value)"></div>
+        </div>
+        <div class="nom-ed nom-ed-sueldo">
+          <div><label>Sueldo diario</label><input class="nom-inp" type="number" min="0" step="25" value="${e.base||0}" onchange="actualizarNominaCampo('${id}','base',this.value)"></div>
+          <div><label>Bono asis. / semana</label><input class="nom-inp" type="number" min="0" step="25" value="${e.asis||0}" onchange="actualizarNominaCampo('${id}','asis',this.value)"></div>
+          <div><label>Bono prod. / semana</label><input class="nom-inp" type="number" min="0" step="25" value="${e.des||0}" onchange="actualizarNominaCampo('${id}','des',this.value)"></div>
         </div>
         ${renderHorarioLaboralHtml(e,id)}
         ${evalHtml}
