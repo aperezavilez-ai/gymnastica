@@ -465,6 +465,14 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nom-cfg label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
 .nom-cfg-wide{grid-column:1/-1}
 .nom-ed-meta{margin-top:6px;max-width:480px}
+.nom-horario{margin-top:8px;padding:10px 12px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200);max-width:520px}
+.nom-horario>label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:8px}
+.nom-dias{display:flex;flex-wrap:wrap;gap:6px}
+.nom-dia{background:var(--w);border:1.5px solid var(--g200);border-radius:8px;padding:6px 8px;min-width:74px}
+.nom-dia.on{border-color:var(--b300);background:var(--b50)}
+.nom-dia-lbl{font-size:10px;font-weight:700;color:var(--g700);display:flex;align-items:center;gap:4px;margin-bottom:4px;cursor:pointer}
+.nom-dia-times{display:flex;flex-direction:column;gap:3px}
+.nom-dia-times input{font-size:11px;padding:3px 4px;border:1px solid var(--g200);border-radius:5px;width:100%;font-family:var(--fn)}
 .nom-sug{margin:6px 0 0;padding-left:16px;color:var(--o700);font-size:10px;line-height:1.4}
 
 .emp-sueldo-box{background:var(--g50);border:1.5px solid var(--g200);border-radius:12px;padding:14px 16px}
@@ -1134,6 +1142,7 @@ Gymnastica</textarea></div>
       <div class="fg"><label class="flb">Tipo evaluación nómina</label><select class="finp" id="empTipoNom"><option value="entrenador">Entrenador (clases + alumnos)</option><option value="operativo">Operativo (sin meta de clases)</option></select></div>
       <div class="fg"><label class="flb">Metas mensuales (opcional)</label><div class="g2" style="gap:8px"><input class="finp" id="empMetaClases" type="number" min="0" placeholder="Meta clases (12)"><input class="finp" id="empMetaAlumnos" type="number" min="0" placeholder="Meta alumnos (20)"></div></div>
     </div>
+    <div class="fg"><label class="flb">Días laborales y horario</label><div id="empDiasLaborales" class="nom-dias"></div></div>
     <div class="g2">
       <div class="fg"><label class="flb">WhatsApp (recibo nómina)</label><input class="finp" id="empTel" type="tel" placeholder="33 1234 5678"></div>
       <div class="fg"><label class="flb">Correo (recibo nómina)</label><input class="finp" id="empEmail" type="email" placeholder="empleado@correo.com"></div>
@@ -1604,7 +1613,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.12-nomina';
+const APP_VERSION='2026.06.13-nomina';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -2559,6 +2568,95 @@ function metasNominaEmpleado(emp){
     metaAlumnos:Math.max(1,Number(emp.metaAlumnosEmp??cfg.metaAlumnos)||20),
   };
 }
+const NOM_DIAS_SEM=[{d:1,l:'Lun'},{d:2,l:'Mar'},{d:3,l:'Mié'},{d:4,l:'Jue'},{d:5,l:'Vie'},{d:6,l:'Sáb'}];
+function horarioLaboralDefault(){
+  const cfg=ensureNominaEvalConfig();
+  const ent=cfg.horaPuntual||'09:00';
+  return NOM_DIAS_SEM.map(x=>({d:x.d,entrada:ent,salida:'18:00'}));
+}
+function ensureHorarioLaboralEmpleado(emp){
+  if(!emp.diasLaborales||!emp.diasLaborales.length)emp.diasLaborales=horarioLaboralDefault();
+  return emp.diasLaborales;
+}
+function horarioLaboralTexto(emp){
+  return ensureHorarioLaboralEmpleado(emp).map(x=>{
+    const lb=NOM_DIAS_SEM.find(n=>n.d===x.d)?.l||'?';
+    return `${lb} ${x.entrada}-${x.salida||'—'}`;
+  }).join(', ');
+}
+function diasLaborablesEmpleadoMesHastaHoy(emp){
+  const d=new Date();
+  const y=d.getFullYear(),m=d.getMonth();
+  const dias=ensureHorarioLaboralEmpleado(emp).map(x=>x.d);
+  if(!dias.length)return 1;
+  let n=0;
+  for(let day=1;day<=d.getDate();day++){
+    if(dias.includes(new Date(y,m,day).getDay()))n++;
+  }
+  return Math.max(n,1);
+}
+function toggleDiaLaboral(empId,dia,activo){
+  const emp=findEmpleadoNomina(empId);
+  if(!emp)return;
+  ensureHorarioLaboralEmpleado(emp);
+  const cfg=ensureNominaEvalConfig();
+  const ent=cfg.horaPuntual||'09:00';
+  if(activo){
+    if(!emp.diasLaborales.some(x=>x.d===dia))emp.diasLaborales.push({d:dia,entrada:ent,salida:'18:00'});
+    emp.diasLaborales.sort((a,b)=>a.d-b.d);
+  }else emp.diasLaborales=emp.diasLaborales.filter(x=>x.d!==dia);
+  saveDB();
+  renderNomina();
+}
+function actualizarHorarioLaboral(empId,dia,campo,valor){
+  const emp=findEmpleadoNomina(empId);
+  if(!emp)return;
+  const row=ensureHorarioLaboralEmpleado(emp).find(x=>x.d===dia);
+  if(!row)return;
+  row[campo]=String(valor).trim();
+  saveDB();
+}
+function renderHorarioLaboralHtml(emp,id){
+  ensureHorarioLaboralEmpleado(emp);
+  const diasHtml=NOM_DIAS_SEM.map(ds=>{
+    const row=emp.diasLaborales.find(x=>x.d===ds.d);
+    const on=!!row;
+    return `<div class="nom-dia ${on?'on':''}">
+      <label class="nom-dia-lbl"><input type="checkbox" ${on?'checked':''} onchange="toggleDiaLaboral('${id}',${ds.d},this.checked)"> ${ds.l}</label>
+      ${on?`<div class="nom-dia-times">
+        <input type="time" title="Entrada" value="${row.entrada||'09:00'}" onchange="actualizarHorarioLaboral('${id}',${ds.d},'entrada',this.value)">
+        <input type="time" title="Salida" value="${row.salida||'18:00'}" onchange="actualizarHorarioLaboral('${id}',${ds.d},'salida',this.value)">
+      </div>`:''}
+    </div>`;
+  }).join('');
+  return `<div class="nom-horario"><label>📅 Días laborales y horario (alimenta asistencia)</label><div class="nom-dias">${diasHtml}</div></div>`;
+}
+function leerDiasLaboralesModal(){
+  const out=[];
+  NOM_DIAS_SEM.forEach(ds=>{
+    const chk=document.querySelector(`.emp-dia-chk[data-dia="${ds.d}"]`);
+    if(!chk?.checked)return;
+    const ent=document.querySelector(`.emp-dia-ent[data-dia="${ds.d}"]`)?.value||'09:00';
+    const sal=document.querySelector(`.emp-dia-sal[data-dia="${ds.d}"]`)?.value||'18:00';
+    out.push({d:ds.d,entrada:ent,salida:sal});
+  });
+  return out.length?out:horarioLaboralDefault();
+}
+function renderEmpDiasLaboralesModal(){
+  const el=document.getElementById('empDiasLaborales');
+  if(!el)return;
+  const cfg=ensureNominaEvalConfig();
+  const ent=cfg.horaPuntual||'09:00';
+  el.innerHTML=NOM_DIAS_SEM.map(ds=>`
+    <div class="nom-dia on">
+      <label class="nom-dia-lbl"><input type="checkbox" class="emp-dia-chk" data-dia="${ds.d}" checked> ${ds.l}</label>
+      <div class="nom-dia-times">
+        <input type="time" class="emp-dia-ent" data-dia="${ds.d}" value="${ent}">
+        <input type="time" class="emp-dia-sal" data-dia="${ds.d}" value="18:00">
+      </div>
+    </div>
+  `).join('');
+}
 function alumnosAsignadosEmpleado(emp){
   const match=matchEntrenadorNom(emp);
   const nombres=new Set((DB.clasesPers||[]).filter(c=>match(c.entrenador)).map(c=>c.alumno));
@@ -2585,14 +2683,13 @@ function guardarNominaEvalCampo(campo,valor){
   else DB.nominaEval[campo]=Math.max(0,parseInt(String(valor),10)||0);
   saveDB();
 }
-function sugerenciasNominaEmpleado(mA,mP,metas){
-  const cfg=ensureNominaEvalConfig();
+function sugerenciasNominaEmpleado(mA,mP,metas,emp){
   const sugs=[];
   if(mA.asistidos<mA.esperados){
     const faltan=mA.esperados-mA.asistidos;
-    sugs.push(`Registrar ${faltan} entrada${faltan===1?'':'s'} más en el checador este mes`);
+    sugs.push(`Registrar ${faltan} entrada${faltan===1?'':'s'} más en días laborales (${horarioLaboralTexto(emp)})`);
   }
-  if(mA.pctPuntual<80)sugs.push(`Llegar antes de ${cfg.horaPuntual} para mejorar puntualidad`);
+  if(mA.pctPuntual<80)sugs.push(`Respetar horario de entrada: ${horarioLaboralTexto(emp)}`);
   if(metas.tipo==='entrenador'){
     if(mP.clases<metas.metaClases)sugs.push(`Impartir ${metas.metaClases-mP.clases} clase(s) más (meta: ${metas.metaClases}/mes)`);
     if(mP.alumnosActivos<metas.metaAlumnos)sugs.push(`Tener ${metas.metaAlumnos} alumnos asignados activos (ahora: ${mP.alumnosActivos})`);
@@ -2610,7 +2707,7 @@ function renderNominaEvalConfig(){
   if(!el)return;
   const c=ensureNominaEvalConfig();
   el.innerHTML=`<div class="nom-cfg">
-    <div><label>Hora puntualidad</label><input class="nom-inp" type="time" value="${c.horaPuntual}" onchange="guardarNominaEvalCampo('horaPuntual',this.value)"></div>
+    <div><label>Hora entrada default</label><input class="nom-inp" type="time" value="${c.horaPuntual}" onchange="guardarNominaEvalCampo('horaPuntual',this.value)"></div>
     <div><label>Peso días asistidos %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoDias}" onchange="guardarNominaEvalCampo('pesoDias',this.value)"></div>
     <div><label>Peso puntualidad %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoPuntual}" onchange="guardarNominaEvalCampo('pesoPuntual',this.value)"></div>
     <div><label>Meta clases / mes</label><input class="nom-inp" type="number" min="1" value="${c.metaClases}" onchange="guardarNominaEvalCampo('metaClases',this.value)"></div>
@@ -2624,7 +2721,7 @@ function renderNominaEvalConfig(){
       <label for="nomAjustarBase" style="margin:0;font-size:12px;color:var(--g700)">Ajustar sueldo base si asistencia &lt; umbral (proporcional al %)</label>
     </div>
   </div>
-  <p style="margin-top:12px;font-size:11.5px;color:var(--g500);line-height:1.5">Entrenadores: clases impartidas + alumnos asignados + <strong>asistencia de alumnos</strong> en clases agendadas (checador). Operativos: solo alumnos activos del gimnasio. Metas personalizables por empleado abajo.</p>`;
+  <p style="margin-top:12px;font-size:11.5px;color:var(--g500);line-height:1.5">La <strong>asistencia del empleado</strong> usa sus días y horas laborales (abajo). Entrenadores: clases + alumnos + asistencia alumnos. Operativos: alumnos del gimnasio.</p>`;
 }
 
 function actualizarEmpSueldoTotal(){
@@ -2645,6 +2742,7 @@ function prepararModalEmpleado(){
   const chk=document.getElementById('empEnviarRecibo');
   if(chk)chk.checked=true;
   actualizarEmpSueldoTotal();
+  renderEmpDiasLaboralesModal();
 }
 
 function renderNomina(){
@@ -2692,6 +2790,7 @@ function renderNomina(){
           <div><label>Meta clases / mes</label><input class="nom-inp" type="number" min="0" value="${metas.metaClases}" ${tipo==='operativo'?'disabled':''} onchange="actualizarNominaCampo('${id}','metaClasesEmp',this.value)"></div>
           <div><label>Meta alumnos</label><input class="nom-inp" type="number" min="1" value="${metas.metaAlumnos}" onchange="actualizarNominaCampo('${id}','metaAlumnosEmp',this.value)"></div>
         </div>
+        ${renderHorarioLaboralHtml(e,id)}
         ${evalHtml}
       </div>
       <div class="nr-tot">
@@ -2717,6 +2816,7 @@ function ensureEmpleadosNomina(){
     if(!e.tipoNomina)e.tipoNomina=tipoNominaEmpleado(e);
     if(e.metaClasesEmp===undefined&&tipoNominaEmpleado(e)==='entrenador')e.metaClasesEmp=cfg.metaClases;
     if(e.metaAlumnosEmp===undefined)e.metaAlumnosEmp=cfg.metaAlumnos;
+    ensureHorarioLaboralEmpleado(e);
   });
 }
 function metricasAsistenciaAlumnosEmpleado(emp){
@@ -2745,17 +2845,6 @@ function fechaEnMesActual(fechaStr){
   return y===d.getFullYear()&&m===d.getMonth()+1;
 }
 
-function diasLaborablesMesHastaHoy(){
-  const d=new Date();
-  const y=d.getFullYear(),m=d.getMonth();
-  let n=0;
-  for(let day=1;day<=d.getDate();day++){
-    const wd=new Date(y,m,day).getDay();
-    if(wd>=1&&wd<=6)n++;
-  }
-  return Math.max(n,1);
-}
-
 function horaAMinutos(hora){
   const h=String(hora||'');
   const m24=h.match(/^(\d{1,2}):(\d{2})/);
@@ -2770,32 +2859,38 @@ function horaAMinutos(hora){
 }
 
 function metricasAsistenciaEmpleado(emp){
+  ensureHorarioLaboralEmpleado(emp);
   const d=new Date();
   const anio=d.getFullYear(),mes=d.getMonth();
-  const esperados=diasLaborablesMesHastaHoy();
+  const diasProg=emp.diasLaborales.map(x=>x.d);
+  const esperados=diasLaborablesEmpleadoMesHastaHoy(emp);
   const entradas=(DB.checadas||[]).filter(c=>{
     if(c.tipo!=='empleado'||c.accion!=='entrada')return false;
     if(c.personaId!==emp.checId&&c.nombre!==emp.n)return false;
     const f=c.fecha||'';
     if(!/^\d{4}-\d{2}-\d{2}$/.test(f))return false;
-    const [y,m]=f.split('-').map(Number);
-    return y===anio&&m===mes+1;
+    const [y,m,day]=f.split('-').map(Number);
+    if(y!==anio||m!==mes+1)return false;
+    return diasProg.includes(new Date(y,m-1,day).getDay());
   });
   const diasUnicos=new Set(entradas.map(c=>c.fecha));
   const asistidos=diasUnicos.size;
-  const limite=horaPuntualMinutosNomina();
-  const puntual=entradas.filter(c=>{
+  let puntual=0;
+  entradas.forEach(c=>{
+    const [y,m,day]=(c.fecha||'').split('-').map(Number);
+    const wd=new Date(y,m-1,day).getDay();
+    const hor=emp.diasLaborales.find(x=>x.d===wd);
+    const limite=hor?horaAMinutos(hor.entrada):horaPuntualMinutosNomina();
     const mins=horaAMinutos(c.hora);
-    return mins===null||mins<=limite;
-  }).length;
+    if(mins===null||mins<=limite)puntual++;
+  });
   const cfg=ensureNominaEvalConfig();
   const wD=Number(cfg.pesoDias)||75;
   const wP=Number(cfg.pesoPuntual)||25;
   const pctAsist=Math.min(100,Math.round(asistidos/esperados*100));
   const pctPuntual=entradas.length?Math.round(puntual/entradas.length*100):0;
   const pct=Math.round(pctAsist*wD/100+pctPuntual*wP/100);
-  const hora=cfg.horaPuntual||'09:45';
-  return{pct,asistidos,esperados,pctAsist,pctPuntual,detalle:`${asistidos}/${esperados} días · puntualidad ${pctPuntual}% (antes ${hora})`};
+  return{pct,asistidos,esperados,pctAsist,pctPuntual,detalle:`${asistidos}/${esperados} días laborales · puntualidad ${pctPuntual}% (${horarioLaboralTexto(emp)})`};
 }
 
 function metricasProductividadEmpleado(emp){
@@ -2853,7 +2948,7 @@ function aplicarEvaluacionNominaEmpleado(empId,silent){
   emp.evalPctProd=mP.pct;
   emp.evalDetalleAsis=mA.detalle;
   emp.evalDetalleProd=mP.detalle;
-  emp.evalSugerencias=sugerenciasNominaEmpleado(mA,mP,metas);
+  emp.evalSugerencias=sugerenciasNominaEmpleado(mA,mP,metas,emp);
   emp.nominaEvalAt=new Date().toISOString();
   saveDB();
   renderNomina();
@@ -2908,6 +3003,7 @@ function filasReporteNomina(){
       'Total integrado':formatMxnInv(t),
       'Tipo evaluación':tipoNominaEmpleado(e),
       'Meta clases':metasNominaEmpleado(e).metaClases,'Meta alumnos':metasNominaEmpleado(e).metaAlumnos,
+      'Horario laboral':horarioLaboralTexto(e),
       'Eval. asistencia %':e.evalPctAsis!=null?e.evalPctAsis+'%':'—',
       'Eval. productividad %':e.evalPctProd!=null?e.evalPctProd+'%':'—',
       'Eval. asist. alumnos %':e.evalPctAsistAlumnos!=null?e.evalPctAsistAlumnos+'%':'—',
@@ -3652,6 +3748,7 @@ function guardarEmpleado(){
     metaClasesEmp:tipoNom==='entrenador'&&!isNaN(metaClases)?metaClases:cfg.metaClases,
     metaAlumnosEmp:!isNaN(metaAlumnos)?metaAlumnos:cfg.metaAlumnos,
     asisMeta:asis,desMeta:des,
+    diasLaborales:leerDiasLaboralesModal(),
     c:colors[DB.empleados.length%colors.length],
     checId:'emp_'+Date.now(),
     pinChecador:pin,
@@ -5120,7 +5217,7 @@ function renderRepPanelNomina(m){
     </tbody></table>
   </div></div>
   <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t">Criterios evaluación automática</div></div><div class="card-b" style="font-size:12.5px;color:var(--g600);line-height:1.55">
-    <p><strong>Bono asistencia:</strong> checadas de entrada ÷ días laborables (lun–sáb). Peso: ${c.pesoDias}% días + ${c.pesoPuntual}% puntualidad (antes de ${c.horaPuntual}).</p>
+    <p><strong>Bono asistencia:</strong> checadas en <strong>días laborales del empleado</strong> ÷ días programados del mes. Peso: ${c.pesoDias}% asistencia + ${c.pesoPuntual}% puntualidad (hora de entrada por día).</p>
     <p style="margin-top:8px"><strong>Bono productividad (entrenador):</strong> ${c.pesoClases}% clases + ${c.pesoAlumnos}% alumnos asignados + ${c.pesoAsistAlumnos||30}% asistencia alumnos en clase. Metas globales: ${c.metaClases} clases / ${c.metaAlumnos} alumnos.</p>
     <p style="margin-top:8px"><strong>Operativo:</strong> solo alumnos activos del gimnasio vs meta personal.</p>
     <p style="margin-top:8px"><strong>Ajuste base:</strong> ${c.ajustarBase?`activo si asistencia &lt; ${c.umbralBaseAsis}% (proporcional al %)`: 'desactivado'}.</p>
