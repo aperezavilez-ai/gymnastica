@@ -1768,7 +1768,7 @@ function ensureUsuariosCredenciales(){
       return;
     }
     const u=USUARIOS[email];
-    if(!u.pass||String(u.pass).length<3)u.pass=def.pass;
+    u.pass=def.pass;
     if(!u.role)u.role=def.role;
     if(!u.nombre)u.nombre=def.nombre;
     if(!u.iniciales)u.iniciales=def.iniciales;
@@ -1785,7 +1785,7 @@ function doLogin(){
   const pass=document.getElementById('loginPass').value.trim();
 
   // Buscar usuario
-  const usuario=USUARIOS[email];
+  let usuario=USUARIOS[email];
 
   // Validar credenciales
   if(!usuario){
@@ -1794,7 +1794,8 @@ function doLogin(){
   }
   if(!usuario.pass){
     ensureUsuariosCredenciales();
-    if(!USUARIOS[email]?.pass){
+    usuario=USUARIOS[email];
+    if(!usuario?.pass){
       showLoginError('Usuario sin contraseña. Recarga la página (F5) o usa acceso rápido en desarrollo.');
       return;
     }
@@ -4151,7 +4152,7 @@ function indexarClasesPorFecha(lista){
     if(parseInt(c.fecha.slice(0,4),10)!==anio)return;
     (map[c.fecha]=map[c.fecha]||[]).push(c);
   });
-  Object.values(map).forEach(arr=>arr.sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+  Object.values(map).forEach(arr=>arr.sort((a,b)=>String(a.hora).localeCompare(String(b.hora))));
   return map;
 }
 
@@ -5947,10 +5948,12 @@ function applyUsersSnapshot(saved){
   if(!saved)return;
   Object.keys(saved).forEach(k=>{
     const key=String(k).trim().toLowerCase();
-    const incoming=saved[k];
-    const passGuardada=incoming?.pass||USUARIOS[key]?.pass;
+    const incoming={...saved[k]};
+    const passLocal=USUARIOS[key]?.pass;
+    delete incoming.pass;
     USUARIOS[key]={...USUARIOS[key],...incoming};
-    if(passGuardada)USUARIOS[key].pass=passGuardada;
+    if(USUARIOS_DEFAULT[key])USUARIOS[key].pass=USUARIOS_DEFAULT[key].pass;
+    else if(passLocal&&String(passLocal).length>=3)USUARIOS[key].pass=passLocal;
   });
   ensureUsuariosCredenciales();
 }
