@@ -516,7 +516,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
       </div>
       <button class="login-btn" type="button" onclick="doLogin()">Entrar al sistema →</button>
       <div id="loginError" style="display:none;margin-top:12px;padding:10px 14px;background:var(--r50);border:1.5px solid var(--r100);border-radius:8px;font-size:12.5px;color:var(--r600);font-weight:500;text-align:center"></div>
-      <div id="cloudStatus" style="margin-top:14px;text-align:center;font-size:11.5px;color:var(--g500)">Sincronización: comprobando…</div>
+      <div id="cloudStatus" style="margin-top:14px;text-align:center;font-size:11.5px;color:var(--g500);line-height:1.45">☁️ Conectando con la nube…</div>
       <div class="login-demo" id="loginDemoBlock" style="display:none">
         Acceso de prueba (solo desarrollo):
         <span onclick="quickLogin('admin')">Admin</span> ·
@@ -6216,13 +6216,24 @@ function iniciarAutoPullNube(){
   });
 }
 
+function conTimeout(promise,ms,msg){
+  return Promise.race([
+    promise,
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error(msg||'Tiempo de espera agotado')),ms))
+  ]);
+}
+
 async function cargarConfigNube(){
   if(window.__GYMNASTICA_CLOUD_CONFIG__)return window.__GYMNASTICA_CLOUD_CONFIG__;
   try{
-    const r=await fetch('/cloud-config.json?'+Date.now());
+    const r=await conTimeout(fetch('/cloud-config.json?'+Date.now()),8000,'cloud-config.json');
     if(r.ok)window.__GYMNASTICA_CLOUD_CONFIG__=await r.json();
   }catch(e){console.warn('cloud-config.json',e);}
   return window.__GYMNASTICA_CLOUD_CONFIG__||{url:'',anon:''};
+}
+
+async function cargarModuloNube(){
+  return conTimeout(import('/js/cloud-sync.js'),12000,'cloud-sync.js');
 }
 
 async function initPersistence(){
@@ -6247,20 +6258,26 @@ async function initPersistence(){
     if(demo)demo.style.display='block';
   }
   saveUsers();
+  setCloudStatus('☁️ Conectando con la nube…','var(--g500)');
   try{
     await cargarConfigNube();
-    cloudModule=await import('./js/cloud.js');
+    cloudModule=await cargarModuloNube();
     if(cloudModule.isCloudEnabled()){
-      await loadFromCloud();
+      await conTimeout(loadFromCloud(),15000,'Supabase');
       iniciarAutoPullNube();
       const host=cloudModule.cloudConfigSummary?.()||'';
-      setCloudStatus(`☁️ Conectado a Supabase (${host}) · ${DB.estudiantes.length} alumnos en nube`,'var(--gr700)');
+      const n=DB.estudiantes.length;
+      setCloudStatus(`☁️ Nube conectada (${host}) · ${n} alumno${n===1?'':'s'} sincronizado${n===1?'':'s'}`,'var(--gr700)');
     }else{
-      setCloudStatus('⚠️ Supabase NO configurado en el servidor — los datos solo se guardan en este navegador','var(--o600)');
+      setCloudStatus('⚠️ Nube no configurada — los datos solo se guardan en este navegador','var(--o600)');
     }
   }catch(e){
     console.warn(e);
-    setCloudStatus('⚠️ Error al conectar con Supabase — solo almacenamiento local','var(--o600)');
+    const det=e?.message?.includes('cloud-config')?'Falta configurar VITE_SUPABASE_* en Vercel':
+      e?.message?.includes('cloud-sync')?'No se pudo cargar el módulo de sincronización':
+      e?.message?.includes('Supabase')?'Supabase no respondió a tiempo':
+      'Revisa la conexión a internet';
+    setCloudStatus(`⚠️ Sin sincronización en la nube (${det})`,'var(--o600)');
   }
   cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
   document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
