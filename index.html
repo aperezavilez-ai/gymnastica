@@ -1576,7 +1576,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.10-nube';
+const APP_VERSION='2026.06.10-fix';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -6129,7 +6129,6 @@ function applyDataSeedIfNeeded(){
 }
 
 function loadDB(){
-  applyDataSeedIfNeeded();
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
     if(!raw)return;
@@ -6213,21 +6212,29 @@ function scheduleCloudSync(){
 }
 
 async function syncToCloud(){
-  if(!nubeDisponible())return;
+  if(!nubeDisponible())return false;
   cloudActive=true;
   syncEnCurso=true;
   try{
     const remote=await cloudModule.fetchRemoteState();
     if(remote?.db)mergeDbForPush(DB,remote.db);
+    const nRemoto=(remote?.db?.estudiantes||[]).length;
+    const nLocal=(DB.estudiantes||[]).length;
+    if(nRemoto>nLocal&&remote?.db?.estudiantes?.length){
+      DB.estudiantes=mergeRecords(DB.estudiantes,remote.db.estudiantes,e=>e.pinChecador||e.checId||e.n);
+    }
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
     await cloudModule.pushRemoteState(DB,usuariosParaNube());
     const after=await cloudModule.fetchRemoteState();
     marcarCloudActualizado(after?.dbUpdatedAt||new Date().toISOString());
     if(after?.db)lastRemoteFingerprint=fingerprintRemoto(after.db,after.dbUpdatedAt);
-    setCloudStatus(`☁️ En vivo · ${DB.estudiantes.length} alumnos`,'var(--gr700)');
+    setCloudSyncVisual('live');
+    return true;
   }catch(e){
-    console.warn(e);
-    setCloudStatus('⚠️ Error al sincronizar con la nube','var(--r600)');
+    console.error('syncToCloud',e);
+    setCloudSyncVisual('error');
+    if(currentUser)toast('No se pudo guardar en la nube: '+(e?.message||'error'),'⚠️');
+    return false;
   }finally{
     syncEnCurso=false;
   }
@@ -6389,7 +6396,25 @@ async function cargarModuloNube(){
 }
 
 async function initPersistence(){
-  loadDB();
+  applyDataSeedIfNeeded();
+  loadUsers();
+  ensureUsuariosCredenciales();
+  let nubeLista=false;
+  try{
+    await cargarConfigNube();
+    cloudModule=await cargarModuloNube();
+    if(cloudModule.isCloudEnabled()){
+      cloudActive=true;
+      nubeLista=await conTimeout(loadFromCloud(),15000,'Supabase');
+      iniciarAutoPullNube();
+      iniciarRealtimeNube();
+    }
+  }catch(e){
+    console.warn('init nube',e);
+  }
+  if(!nubeLista){
+    loadDB();
+  }
   ensureCuentas();
   ensureRecibos();
   ensureRegistrosMedicos();
@@ -6397,8 +6422,6 @@ async function initPersistence(){
   ensureInventarioMensual();
   ensurePromos();
   ensureEstudianteContacto();
-  loadUsers();
-  ensureUsuariosCredenciales();
   ensureChecadorData();
   ensureEmpleadosNomina();
   ensureLogros();
@@ -6409,19 +6432,7 @@ async function initPersistence(){
     const demo=document.getElementById('loginDemoBlock');
     if(demo)demo.style.display='block';
   }
-  saveUsers();
-  try{
-    await cargarConfigNube();
-    cloudModule=await cargarModuloNube();
-    if(cloudModule.isCloudEnabled()){
-      cloudActive=true;
-      await conTimeout(loadFromCloud(),15000,'Supabase');
-      iniciarAutoPullNube();
-      iniciarRealtimeNube();
-    }
-  }catch(e){
-    console.warn(e);
-  }
+  try{localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));}catch(e){}
   cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
   restaurarSesion();
   document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
