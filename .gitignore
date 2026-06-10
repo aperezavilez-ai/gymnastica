@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+public/cloud-config.json
 .vercel
 *.log
 .vercel

@@ -1,11 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL || '';
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
 let client = null;
 
+function cloudCfg() {
+  if (typeof window !== 'undefined' && window.__GYMNASTICA_CLOUD_CONFIG__) {
+    return window.__GYMNASTICA_CLOUD_CONFIG__;
+  }
+  return null;
+}
+
+function getUrl() {
+  return import.meta.env.VITE_SUPABASE_URL || cloudCfg()?.url || '';
+}
+
+function getAnon() {
+  return import.meta.env.VITE_SUPABASE_ANON_KEY || cloudCfg()?.anon || '';
+}
+
 export function isCloudEnabled() {
+  const url = getUrl();
+  const anon = getAnon();
   const placeholders = ['', 'TU_URL', 'TU_CLAVE', 'your-project.supabase.co'];
   return Boolean(
     url &&
@@ -15,9 +29,15 @@ export function isCloudEnabled() {
   );
 }
 
+export function cloudConfigSummary() {
+  const url = getUrl();
+  if (!url) return 'sin URL';
+  return url.replace(/^(https:\/\/[^.]+).*/, '$1…');
+}
+
 export function getClient() {
   if (!isCloudEnabled()) return null;
-  if (!client) client = createClient(url, anon);
+  if (!client) client = createClient(getUrl(), getAnon());
   return client;
 }
 

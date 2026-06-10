@@ -4,9 +4,9 @@
   "private": true,
   "description": "Gymnastica — Sistema de Gestión Deportivo",
   "scripts": {
-    "dev": "vite",
-    "start": "vite",
-    "build": "vite build",
+    "dev": "node scripts/write-cloud-config.cjs && vite",
+    "start": "node scripts/write-cloud-config.cjs && vite",
+    "build": "node scripts/write-cloud-config.cjs && vite build",
     "preview": "vite preview",
     "vercel:whoami": "vercel whoami",
     "vercel:ls": "vercel ls",

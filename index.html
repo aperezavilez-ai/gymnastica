@@ -6103,8 +6103,9 @@ async function syncToCloud(){
     if(remote?.db)mergeDbForPush(DB,remote.db);
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
     await cloudModule.pushRemoteState(DB,usuariosParaNube());
-    marcarCloudActualizado(new Date().toISOString());
-    setCloudStatus('☁️ Sincronizado con Supabase','var(--gr700)');
+    const after=await cloudModule.fetchRemoteState();
+    marcarCloudActualizado(after?.dbUpdatedAt||new Date().toISOString());
+    setCloudStatus(`☁️ Sincronizado · ${DB.estudiantes.length} alumnos`,'var(--gr700)');
   }catch(e){
     console.warn(e);
     setCloudStatus('⚠️ Error al sincronizar con la nube','var(--r600)');
@@ -6117,7 +6118,10 @@ async function pullFromCloudIfNewer(silent){
     const remote=await cloudModule.fetchRemoteState();
     const hasDb=remote?.db&&Object.keys(remote.db).length>0;
     if(!hasDb)return false;
-    if(!cloudAtEsMasReciente(remote.dbUpdatedAt)&&cloudDbUpdatedAt)return false;
+    const nRemoto=(remote.db.estudiantes||[]).length;
+    const nLocal=DB.estudiantes.length;
+    const cambioCantidad=nRemoto!==nLocal;
+    if(!cambioCantidad&&!cloudAtEsMasReciente(remote.dbUpdatedAt)&&cloudDbUpdatedAt)return false;
     mergeDbFromRemote(DB,remote.db);
     if(remote.usuarios)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
@@ -6150,10 +6154,11 @@ async function sincronizarNubeAhora(){
     if(remote?.db)mergeDbForPush(DB,remote.db);
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
     await cloudModule.pushRemoteState(DB,usuariosParaNube());
-    marcarCloudActualizado(new Date().toISOString());
+    const after=await cloudModule.fetchRemoteState();
+    marcarCloudActualizado(after?.dbUpdatedAt||new Date().toISOString());
     if(currentUser)renderAll();
-    toast('Sincronizado con la nube','☁️');
-    setCloudStatus('☁️ Sincronizado con Supabase','var(--gr700)');
+    toast(`Sincronizado · ${DB.estudiantes.length} alumnos en nube`,'☁️');
+    setCloudStatus(`☁️ Sincronizado · ${DB.estudiantes.length} alumnos`,'var(--gr700)');
   }catch(e){
     console.warn(e);
     setCloudStatus('⚠️ Error al sincronizar con la nube','var(--r600)');
@@ -6193,6 +6198,15 @@ function iniciarAutoPullNube(){
   });
 }
 
+async function cargarConfigNube(){
+  if(window.__GYMNASTICA_CLOUD_CONFIG__)return window.__GYMNASTICA_CLOUD_CONFIG__;
+  try{
+    const r=await fetch('/cloud-config.json?'+Date.now());
+    if(r.ok)window.__GYMNASTICA_CLOUD_CONFIG__=await r.json();
+  }catch(e){console.warn('cloud-config.json',e);}
+  return window.__GYMNASTICA_CLOUD_CONFIG__||{url:'',anon:''};
+}
+
 async function initPersistence(){
   loadDB();
   ensureCuentas();
@@ -6216,16 +6230,19 @@ async function initPersistence(){
   }
   saveUsers();
   try{
+    await cargarConfigNube();
     cloudModule=await import('./js/cloud.js');
     if(cloudModule.isCloudEnabled()){
       await loadFromCloud();
       iniciarAutoPullNube();
+      const host=cloudModule.cloudConfigSummary?.()||'';
+      setCloudStatus(`☁️ Conectado a Supabase (${host}) · ${DB.estudiantes.length} alumnos en nube`,'var(--gr700)');
     }else{
-      setCloudStatus('💾 Solo almacenamiento local (.env sin Supabase)','var(--g500)');
+      setCloudStatus('⚠️ Supabase NO configurado en el servidor — los datos solo se guardan en este navegador','var(--o600)');
     }
   }catch(e){
     console.warn(e);
-    setCloudStatus('💾 Solo almacenamiento local','var(--g500)');
+    setCloudStatus('⚠️ Error al conectar con Supabase — solo almacenamiento local','var(--o600)');
   }
   cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
   document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
