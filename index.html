@@ -80,6 +80,7 @@ body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(
 .role-opt{padding:12px;border:1.5px solid var(--g200);border-radius:10px;cursor:pointer;text-align:center;transition:all .15s;background:var(--w)}
 .role-opt:hover{border-color:var(--b400);background:var(--b50)}
 .role-opt.sel{border-color:var(--b600);background:var(--b50)}
+.role-opt.role-wide{grid-column:1/-1}
 .role-opt .ro-ico{font-size:22px;margin-bottom:5px}
 .role-opt .ro-name{font-size:12.5px;font-weight:700;color:var(--g800)}
 .role-opt .ro-desc{font-size:11px;color:var(--g500);margin-top:1px}
@@ -499,7 +500,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
           <div class="ro-name">Operador</div>
           <div class="ro-desc">Registro y consultas</div>
         </div>
-        <div class="role-opt" onclick="selRole(this,'padre')">
+        <div class="role-opt role-wide" onclick="selRole(this,'padre')">
           <div class="ro-ico">👨‍👧</div>
           <div class="ro-name">Padre / Tutor</div>
           <div class="ro-desc">Ver y pagar mensualidades</div>
