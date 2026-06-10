@@ -465,10 +465,10 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nom-cfg label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
 .nom-cfg-wide{grid-column:1/-1}
 .nom-ed-meta{margin-top:6px;max-width:480px}
-.nom-horario{margin-top:8px;padding:10px 12px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200);max-width:520px}
+.nom-horario{margin-top:8px;padding:10px 12px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200);max-width:100%}
 .nom-horario>label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:8px}
-.nom-dias{display:flex;flex-wrap:wrap;gap:6px}
-.nom-dia{background:var(--w);border:1.5px solid var(--g200);border-radius:8px;padding:6px 8px;min-width:74px}
+.nom-dias{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%}
+.nom-dia{background:var(--w);border:1.5px solid var(--g200);border-radius:8px;padding:6px 6px;min-width:0}
 .nom-dia.on{border-color:var(--b300);background:var(--b50)}
 .nom-dia-lbl{font-size:10px;font-weight:700;color:var(--g700);display:flex;align-items:center;gap:4px;margin-bottom:4px;cursor:pointer}
 .nom-dia-times{display:flex;flex-direction:column;gap:3px}
@@ -1613,7 +1613,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.14-nomina';
+const APP_VERSION='2026.06.15-nomina';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
