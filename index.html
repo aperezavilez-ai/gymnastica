@@ -464,6 +464,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 .nom-cfg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 12px}
 .nom-cfg label{font-size:10px;font-weight:600;color:var(--g500);display:block;margin-bottom:3px}
 .nom-cfg-wide{grid-column:1/-1}
+.nom-ed-meta{margin-top:6px;max-width:480px}
 .nom-sug{margin:6px 0 0;padding-left:16px;color:var(--o700);font-size:10px;line-height:1.4}
 
 .emp-sueldo-box{background:var(--g50);border:1.5px solid var(--g200);border-radius:12px;padding:14px 16px}
@@ -1130,6 +1131,10 @@ Gymnastica</textarea></div>
       </div>
     </div>
     <div class="g2">
+      <div class="fg"><label class="flb">Tipo evaluación nómina</label><select class="finp" id="empTipoNom"><option value="entrenador">Entrenador (clases + alumnos)</option><option value="operativo">Operativo (sin meta de clases)</option></select></div>
+      <div class="fg"><label class="flb">Metas mensuales (opcional)</label><div class="g2" style="gap:8px"><input class="finp" id="empMetaClases" type="number" min="0" placeholder="Meta clases (12)"><input class="finp" id="empMetaAlumnos" type="number" min="0" placeholder="Meta alumnos (20)"></div></div>
+    </div>
+    <div class="g2">
       <div class="fg"><label class="flb">WhatsApp (recibo nómina)</label><input class="finp" id="empTel" type="tel" placeholder="33 1234 5678"></div>
       <div class="fg"><label class="flb">Correo (recibo nómina)</label><input class="finp" id="empEmail" type="email" placeholder="empleado@correo.com"></div>
     </div>
@@ -1529,8 +1534,9 @@ const DB={
     pesoPuntual:25,
     metaClases:12,
     metaAlumnos:20,
-    pesoClases:55,
-    pesoAlumnos:45,
+    pesoClases:40,
+    pesoAlumnos:30,
+    pesoAsistAlumnos:30,
     ajustarBase:true,
     umbralBaseAsis:70,
   },
@@ -1598,7 +1604,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.11-nomina';
+const APP_VERSION='2026.06.12-nomina';
 const DATA_SEED_VERSION='2026.06.08.mx';
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
@@ -2532,8 +2538,35 @@ function empleadoSueldoTotal(e){
 }
 const NOMINA_EVAL_DEFAULT={
   horaPuntual:'09:45',pesoDias:75,pesoPuntual:25,metaClases:12,metaAlumnos:20,
-  pesoClases:55,pesoAlumnos:45,ajustarBase:true,umbralBaseAsis:70,
+  pesoClases:40,pesoAlumnos:30,pesoAsistAlumnos:30,ajustarBase:true,umbralBaseAsis:70,
 };
+function matchEntrenadorNom(emp){
+  const nom=emp.n;
+  const corto=nom.split(' ')[0].toLowerCase();
+  return n=>{const s=String(n||'').toLowerCase();return s===nom.toLowerCase()||s.includes(corto);};
+}
+function tipoNominaEmpleado(emp){
+  if(emp.tipoNomina==='entrenador'||emp.tipoNomina==='operativo')return emp.tipoNomina;
+  const rol=String(emp.rol||'').toLowerCase();
+  return /entrenador|entrenadora|coach|instructor/.test(rol)?'entrenador':'operativo';
+}
+function metasNominaEmpleado(emp){
+  const cfg=ensureNominaEvalConfig();
+  const tipo=tipoNominaEmpleado(emp);
+  return{
+    tipo,
+    metaClases:Math.max(0,Number(emp.metaClasesEmp??cfg.metaClases)||12),
+    metaAlumnos:Math.max(1,Number(emp.metaAlumnosEmp??cfg.metaAlumnos)||20),
+  };
+}
+function alumnosAsignadosEmpleado(emp){
+  const match=matchEntrenadorNom(emp);
+  const nombres=new Set((DB.clasesPers||[]).filter(c=>match(c.entrenador)).map(c=>c.alumno));
+  const asignados=DB.estudiantes.filter(e=>e.activo!==false&&nombres.has(e.n)).length;
+  if(asignados>0)return asignados;
+  if(DB.empleados.length<=1)return DB.estudiantes.filter(e=>e.activo!==false).length;
+  return 0;
+}
 function ensureNominaEvalConfig(){
   if(!DB.nominaEval)DB.nominaEval={...NOMINA_EVAL_DEFAULT};
   else DB.nominaEval={...NOMINA_EVAL_DEFAULT,...DB.nominaEval};
@@ -2552,7 +2585,7 @@ function guardarNominaEvalCampo(campo,valor){
   else DB.nominaEval[campo]=Math.max(0,parseInt(String(valor),10)||0);
   saveDB();
 }
-function sugerenciasNominaEmpleado(mA,mP){
+function sugerenciasNominaEmpleado(mA,mP,metas){
   const cfg=ensureNominaEvalConfig();
   const sugs=[];
   if(mA.asistidos<mA.esperados){
@@ -2560,8 +2593,16 @@ function sugerenciasNominaEmpleado(mA,mP){
     sugs.push(`Registrar ${faltan} entrada${faltan===1?'':'s'} más en el checador este mes`);
   }
   if(mA.pctPuntual<80)sugs.push(`Llegar antes de ${cfg.horaPuntual} para mejorar puntualidad`);
-  if(mP.clases<cfg.metaClases)sugs.push(`Impartir ${cfg.metaClases-mP.clases} clase(s) más (meta: ${cfg.metaClases}/mes)`);
-  if(mP.alumnosActivos<cfg.metaAlumnos)sugs.push(`Alcanzar ${cfg.metaAlumnos} alumnos activos (ahora: ${mP.alumnosActivos})`);
+  if(metas.tipo==='entrenador'){
+    if(mP.clases<metas.metaClases)sugs.push(`Impartir ${metas.metaClases-mP.clases} clase(s) más (meta: ${metas.metaClases}/mes)`);
+    if(mP.alumnosActivos<metas.metaAlumnos)sugs.push(`Tener ${metas.metaAlumnos} alumnos asignados activos (ahora: ${mP.alumnosActivos})`);
+    if(mP.sesionesAsistidas<mP.totalSesiones&&mP.totalSesiones>0){
+      const faltan=mP.totalSesiones-mP.sesionesAsistidas;
+      sugs.push(`${faltan} alumno(s) sin checada en clase agendada — revisar módulo Asistencia`);
+    }
+  }else if(mP.alumnosActivos<metas.metaAlumnos){
+    sugs.push(`Alcanzar ${metas.metaAlumnos} alumnos activos del gimnasio (ahora: ${mP.alumnosActivos})`);
+  }
   return sugs;
 }
 function renderNominaEvalConfig(){
@@ -2576,13 +2617,14 @@ function renderNominaEvalConfig(){
     <div><label>Meta alumnos activos</label><input class="nom-inp" type="number" min="1" value="${c.metaAlumnos}" onchange="guardarNominaEvalCampo('metaAlumnos',this.value)"></div>
     <div><label>Peso clases %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoClases}" onchange="guardarNominaEvalCampo('pesoClases',this.value)"></div>
     <div><label>Peso alumnos %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoAlumnos}" onchange="guardarNominaEvalCampo('pesoAlumnos',this.value)"></div>
+    <div><label>Peso asist. alumnos %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.pesoAsistAlumnos||30}" onchange="guardarNominaEvalCampo('pesoAsistAlumnos',this.value)"></div>
     <div><label>Umbral base asis. %</label><input class="nom-inp" type="number" min="0" max="100" value="${c.umbralBaseAsis}" onchange="guardarNominaEvalCampo('umbralBaseAsis',this.value)"></div>
     <div class="nom-cfg-wide" style="display:flex;align-items:center;gap:8px;padding-top:4px">
       <input type="checkbox" id="nomAjustarBase" ${c.ajustarBase?'checked':''} onchange="guardarNominaEvalCampo('ajustarBase',this.checked)">
       <label for="nomAjustarBase" style="margin:0;font-size:12px;color:var(--g700)">Ajustar sueldo base si asistencia &lt; umbral (proporcional al %)</label>
     </div>
   </div>
-  <p style="margin-top:12px;font-size:11.5px;color:var(--g500);line-height:1.5">Los bonos se calculan con las metas de cada empleado. El sueldo base contractual no cambia; solo se aplica un <strong>base ajustado</strong> del mes cuando la asistencia está bajo el umbral.</p>`;
+  <p style="margin-top:12px;font-size:11.5px;color:var(--g500);line-height:1.5">Entrenadores: clases impartidas + alumnos asignados + <strong>asistencia de alumnos</strong> en clases agendadas (checador). Operativos: solo alumnos activos del gimnasio. Metas personalizables por empleado abajo.</p>`;
 }
 
 function actualizarEmpSueldoTotal(){
@@ -2631,7 +2673,10 @@ function renderNomina(){
     const id=esc(e.checId||e.n);
     const baseNota=e.baseAjusteNota?`<div style="font-size:10px;color:var(--o700);margin-top:4px">${e.baseAjusteNota}</div>`:'';
     const sugs=(e.evalSugerencias||[]).length?`<ul class="nom-sug">${e.evalSugerencias.map(s=>`<li>${s}</li>`).join('')}</ul>`:'';
-    const evalHtml=e.evalPctAsis!=null?`<div class="nom-eval"><b>Evaluación:</b> Asistencia ${e.evalPctAsis}% · Productividad ${e.evalPctProd||0}%<br>${e.evalDetalleAsis||''}${e.evalDetalleProd?' · '+e.evalDetalleProd:''}${baseNota}${sugs}</div>`:'';
+    const tipo=tipoNominaEmpleado(e);
+    const metas=metasNominaEmpleado(e);
+    const asisAlTxt=e.evalPctAsistAlumnos!=null&&tipo==='entrenador'?` · Asist. alumnos ${e.evalPctAsistAlumnos}%`:'';
+    const evalHtml=e.evalPctAsis!=null?`<div class="nom-eval"><b>Evaluación:</b> Asistencia ${e.evalPctAsis}% · Productividad ${e.evalPctProd||0}%${asisAlTxt}<br>${e.evalDetalleAsis||''}${e.evalDetalleProd?' · '+e.evalDetalleProd:''}${baseNota}${sugs}</div>`:'';
     return `<div class="nr">
       <div class="nr-av" style="background:${e.c}">${e.n.charAt(0)}</div>
       <div style="flex:1;min-width:0">
@@ -2641,6 +2686,11 @@ function renderNomina(){
           <div><label>Sueldo base</label><input class="nom-inp" type="number" min="0" step="50" value="${e.base||0}" onchange="actualizarNominaCampo('${id}','base',this.value)"></div>
           <div><label>Bono asistencia</label><input class="nom-inp" type="number" min="0" step="25" value="${e.asis||0}" onchange="actualizarNominaCampo('${id}','asis',this.value)"></div>
           <div><label>Bono productividad</label><input class="nom-inp" type="number" min="0" step="25" value="${e.des||0}" onchange="actualizarNominaCampo('${id}','des',this.value)"></div>
+        </div>
+        <div class="nom-ed nom-ed-meta">
+          <div><label>Tipo evaluación</label><select class="nom-inp" onchange="actualizarNominaCampo('${id}','tipoNomina',this.value)"><option value="entrenador" ${tipo==='entrenador'?'selected':''}>Entrenador</option><option value="operativo" ${tipo==='operativo'?'selected':''}>Operativo</option></select></div>
+          <div><label>Meta clases / mes</label><input class="nom-inp" type="number" min="0" value="${metas.metaClases}" ${tipo==='operativo'?'disabled':''} onchange="actualizarNominaCampo('${id}','metaClasesEmp',this.value)"></div>
+          <div><label>Meta alumnos</label><input class="nom-inp" type="number" min="1" value="${metas.metaAlumnos}" onchange="actualizarNominaCampo('${id}','metaAlumnosEmp',this.value)"></div>
         </div>
         ${evalHtml}
       </div>
@@ -2657,13 +2707,35 @@ function renderNomina(){
 }
 
 function ensureEmpleadosNomina(){
+  const cfg=ensureNominaEvalConfig();
   DB.empleados.forEach(e=>{
     if(e.base===undefined)e.base=350;
     if(e.asis===undefined)e.asis=150;
     if(e.des===undefined)e.des=125;
     if(e.asisMeta===undefined)e.asisMeta=e.asis;
     if(e.desMeta===undefined)e.desMeta=e.des;
+    if(!e.tipoNomina)e.tipoNomina=tipoNominaEmpleado(e);
+    if(e.metaClasesEmp===undefined&&tipoNominaEmpleado(e)==='entrenador')e.metaClasesEmp=cfg.metaClases;
+    if(e.metaAlumnosEmp===undefined)e.metaAlumnosEmp=cfg.metaAlumnos;
   });
+}
+function metricasAsistenciaAlumnosEmpleado(emp){
+  const match=matchEntrenadorNom(emp);
+  const sesiones=(DB.clasesPers||[]).filter(c=>fechaEnMesActual(c.fecha)&&match(c.entrenador));
+  const totalSes=sesiones.length;
+  if(!totalSes)return{pct:0,sesionesAsistidas:0,totalSesiones:0,detalle:'sin clases agendadas'};
+  let asistidas=0;
+  sesiones.forEach(s=>{
+    const est=DB.estudiantes.find(e=>e.n===s.alumno);
+    const pid=est?.checId||s.alumno;
+    const hubo=(DB.checadas||[]).some(c=>
+      c.tipo==='estudiante'&&c.accion==='entrada'&&c.fecha===s.fecha&&
+      (c.personaId===pid||c.nombre===s.alumno)
+    );
+    if(hubo)asistidas++;
+  });
+  const pct=Math.min(100,Math.round(asistidas/totalSes*100));
+  return{pct,sesionesAsistidas:asistidas,totalSesiones:totalSes,detalle:`${asistidas}/${totalSes} asist. alumnos en clase`};
 }
 
 function fechaEnMesActual(fechaStr){
@@ -2727,24 +2799,33 @@ function metricasAsistenciaEmpleado(emp){
 }
 
 function metricasProductividadEmpleado(emp){
-  const nom=emp.n;
-  const corto=nom.split(' ')[0].toLowerCase();
-  const matchNom=n=>{const s=String(n||'').toLowerCase();return s===nom.toLowerCase()||s.includes(corto);};
-  const pers=(DB.clasesPers||[]).filter(c=>fechaEnMesActual(c.fecha)&&matchNom(c.entrenador)).length;
+  const metas=metasNominaEmpleado(emp);
+  const match=matchEntrenadorNom(emp);
+  const cfg=ensureNominaEvalConfig();
+  const mAsisAl=metricasAsistenciaAlumnosEmpleado(emp);
+  if(metas.tipo==='operativo'){
+    const alumnosActivos=DB.estudiantes.filter(e=>e.activo!==false).length;
+    const pct=Math.min(100,Math.round(alumnosActivos/metas.metaAlumnos*100));
+    return{pct,clases:0,alumnosActivos,sesionesAsistidas:0,totalSesiones:0,pctAsistAlumnos:0,
+      detalle:`${alumnosActivos}/${metas.metaAlumnos} alumnos gimnasio (operativo)`};
+  }
+  const pers=(DB.clasesPers||[]).filter(c=>fechaEnMesActual(c.fecha)&&match(c.entrenador)).length;
   const grupales=DB.empleados.length<=1
     ?(DB.calendarioGrupal||[]).filter(c=>fechaEnMesActual(c.fecha)).length
     :0;
   const clases=pers+grupales;
-  const alumnosActivos=DB.estudiantes.filter(e=>e.activo!==false).length;
-  const cfg=ensureNominaEvalConfig();
-  const metaC=Math.max(1,Number(cfg.metaClases)||12);
-  const metaA=Math.max(1,Number(cfg.metaAlumnos)||20);
-  const wC=Number(cfg.pesoClases)||55;
-  const wA=Number(cfg.pesoAlumnos)||45;
+  const alumnosActivos=alumnosAsignadosEmpleado(emp);
+  const metaC=Math.max(1,metas.metaClases||1);
+  const metaA=metas.metaAlumnos;
+  const wC=Number(cfg.pesoClases)||40;
+  const wA=Number(cfg.pesoAlumnos)||30;
+  const wAA=Number(cfg.pesoAsistAlumnos)||30;
   const pctClases=Math.min(100,Math.round(clases/metaC*100));
   const pctAlumnos=Math.min(100,Math.round(alumnosActivos/metaA*100));
-  const pct=Math.round(pctClases*wC/100+pctAlumnos*wA/100);
-  return{pct,clases,alumnosActivos,detalle:`${clases}/${metaC} clases · ${alumnosActivos}/${metaA} alumnos activos`};
+  const pctAsisAl=mAsisAl.pct;
+  const pct=Math.round(pctClases*wC/100+pctAlumnos*wA/100+pctAsisAl*wAA/100);
+  return{pct,clases,alumnosActivos,sesionesAsistidas:mAsisAl.sesionesAsistidas,totalSesiones:mAsisAl.totalSesiones,
+    pctAsistAlumnos:pctAsisAl,detalle:`${clases}/${metaC} clases · ${alumnosActivos}/${metaA} alumnos · ${mAsisAl.detalle}`};
 }
 
 function aplicarEvaluacionNominaEmpleado(empId,silent){
@@ -2754,10 +2835,12 @@ function aplicarEvaluacionNominaEmpleado(empId,silent){
   const asisMeta=Number(emp.asisMeta)||150;
   const desMeta=Number(emp.desMeta)||125;
   const cfg=ensureNominaEvalConfig();
+  const metas=metasNominaEmpleado(emp);
   const mA=metricasAsistenciaEmpleado(emp);
   const mP=metricasProductividadEmpleado(emp);
   emp.asis=Math.round(asisMeta*mA.pct/100);
   emp.des=Math.round(desMeta*mP.pct/100);
+  emp.evalPctAsistAlumnos=mP.pctAsistAlumnos??null;
   const baseContrato=Number(emp.base)||0;
   if(cfg.ajustarBase&&mA.pct<(Number(cfg.umbralBaseAsis)||70)){
     emp.baseAplicado=Math.round(baseContrato*mA.pct/100);
@@ -2770,7 +2853,7 @@ function aplicarEvaluacionNominaEmpleado(empId,silent){
   emp.evalPctProd=mP.pct;
   emp.evalDetalleAsis=mA.detalle;
   emp.evalDetalleProd=mP.detalle;
-  emp.evalSugerencias=sugerenciasNominaEmpleado(mA,mP);
+  emp.evalSugerencias=sugerenciasNominaEmpleado(mA,mP,metas);
   emp.nominaEvalAt=new Date().toISOString();
   saveDB();
   renderNomina();
@@ -2793,6 +2876,9 @@ function actualizarNominaCampo(empId,campo,valor){
   if(campo==='base'){emp.base=n;emp.baseAplicado=null;delete emp.baseAjusteNota;}
   else if(campo==='asis'){emp.asis=n;emp.asisMeta=n;}
   else if(campo==='des'){emp.des=n;emp.desMeta=n;}
+  else if(campo==='tipoNomina'){emp.tipoNomina=valor==='operativo'?'operativo':'entrenador';renderNomina();return;}
+  else if(campo==='metaClasesEmp')emp.metaClasesEmp=Math.max(0,parseInt(String(valor),10)||0);
+  else if(campo==='metaAlumnosEmp')emp.metaAlumnosEmp=Math.max(1,parseInt(String(valor),10)||1);
   saveDB();
   const tot=empleadoSueldoTotal(emp);
   const esc=String(empId).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -2820,8 +2906,11 @@ function filasReporteNomina(){
       'Base contractual':formatMxnInv(e.base),'Base aplicada mes':baseReal!==Number(e.base)?formatMxnInv(baseReal):formatMxnInv(e.base),
       'Bono asistencia':formatMxnInv(e.asis),'Bono productividad':formatMxnInv(e.des),
       'Total integrado':formatMxnInv(t),
+      'Tipo evaluación':tipoNominaEmpleado(e),
+      'Meta clases':metasNominaEmpleado(e).metaClases,'Meta alumnos':metasNominaEmpleado(e).metaAlumnos,
       'Eval. asistencia %':e.evalPctAsis!=null?e.evalPctAsis+'%':'—',
       'Eval. productividad %':e.evalPctProd!=null?e.evalPctProd+'%':'—',
+      'Eval. asist. alumnos %':e.evalPctAsistAlumnos!=null?e.evalPctAsistAlumnos+'%':'—',
       DetalleAsistencia:e.evalDetalleAsis||'—',DetalleProductividad:e.evalDetalleProd||'—',
       Sugerencias:(e.evalSugerencias||[]).join(' · ')||'—',
       AjusteBase:e.baseAjusteNota||'—',
@@ -3553,8 +3642,16 @@ function guardarEmpleado(){
   if(!nombre){toast('Ingresa el nombre del empleado','⚠️');return;}
   const pin=generarPinChecador('empleado');
   const colors=['#3b82f6','#a855f7','#22c55e','#f97316','#ec4899','#06b6d4'];
+  const tipoNom=document.getElementById('empTipoNom')?.value||'entrenador';
+  const metaClases=parseInt(document.getElementById('empMetaClases')?.value,10);
+  const metaAlumnos=parseInt(document.getElementById('empMetaAlumnos')?.value,10);
+  const cfg=ensureNominaEvalConfig();
   const emp={
     n:nombre,rol,base,asis,des,
+    tipoNomina:tipoNom==='operativo'?'operativo':'entrenador',
+    metaClasesEmp:tipoNom==='entrenador'&&!isNaN(metaClases)?metaClases:cfg.metaClases,
+    metaAlumnosEmp:!isNaN(metaAlumnos)?metaAlumnos:cfg.metaAlumnos,
+    asisMeta:asis,desMeta:des,
     c:colors[DB.empleados.length%colors.length],
     checId:'emp_'+Date.now(),
     pinChecador:pin,
@@ -5024,7 +5121,8 @@ function renderRepPanelNomina(m){
   </div></div>
   <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t">Criterios evaluación automática</div></div><div class="card-b" style="font-size:12.5px;color:var(--g600);line-height:1.55">
     <p><strong>Bono asistencia:</strong> checadas de entrada ÷ días laborables (lun–sáb). Peso: ${c.pesoDias}% días + ${c.pesoPuntual}% puntualidad (antes de ${c.horaPuntual}).</p>
-    <p style="margin-top:8px"><strong>Bono productividad:</strong> meta ${c.metaClases} clases y ${c.metaAlumnos} alumnos activos. Peso: ${c.pesoClases}% clases + ${c.pesoAlumnos}% alumnos.</p>
+    <p style="margin-top:8px"><strong>Bono productividad (entrenador):</strong> ${c.pesoClases}% clases + ${c.pesoAlumnos}% alumnos asignados + ${c.pesoAsistAlumnos||30}% asistencia alumnos en clase. Metas globales: ${c.metaClases} clases / ${c.metaAlumnos} alumnos.</p>
+    <p style="margin-top:8px"><strong>Operativo:</strong> solo alumnos activos del gimnasio vs meta personal.</p>
     <p style="margin-top:8px"><strong>Ajuste base:</strong> ${c.ajustarBase?`activo si asistencia &lt; ${c.umbralBaseAsis}% (proporcional al %)`: 'desactivado'}.</p>
     <p style="margin-top:8px">Usa <strong>⟳ Evaluar mes</strong> en Nómina; montos editables manualmente después.</p>
   </div></div>`;
