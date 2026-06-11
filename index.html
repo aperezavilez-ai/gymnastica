@@ -13,6 +13,15 @@
 <link rel="apple-touch-icon" href="/assets/icono-gym.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <title>Gymnastica — Sistema de Gestión Deportivo</title>
+<script>
+(function(){
+  var app=window.matchMedia('(display-mode: standalone)').matches
+    ||window.matchMedia('(display-mode: fullscreen)').matches
+    ||window.navigator.standalone===true
+    ||sessionStorage.getItem('gymnastica_browser_ok')==='1';
+  document.documentElement.dataset.pwaMode=app?'app':'install';
+})();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -42,13 +51,14 @@
 body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(--brand-bg-pattern);background-attachment:fixed;color:var(--g900);height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:13px;-webkit-font-smoothing:antialiased}
 
 /* ─── INSTALL / PWA SPLASH ─── */
-#installScreen{position:fixed;inset:0;background-color:var(--brand-bg-base);background-image:var(--brand-bg-pattern);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;z-index:250;padding:24px;overflow-y:auto}
-#installScreen.hidden{display:none}
-.install-shell{width:100%;max-width:380px;text-align:center}
-.install-logo{margin-bottom:36px}
-.install-logo img{width:128px;height:128px;border-radius:28px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
-.install-name{font-size:28px;font-weight:800;letter-spacing:.14em;color:#fff;margin-top:18px}
-.install-tag{font-size:13px;color:rgba(255,255,255,.55);margin-top:6px}
+html[data-pwa-mode="install"] #loginScreen{display:none!important}
+html[data-pwa-mode="install"] #installScreen{display:flex!important}
+html[data-pwa-mode="app"] #installScreen{display:none!important}
+#installScreen{position:fixed;inset:0;background-color:var(--brand-bg-base);background-image:var(--brand-bg-pattern);background-size:cover;background-position:center;display:none;align-items:center;justify-content:center;z-index:250;padding:24px;overflow-y:auto}
+#installScreen.hidden{display:none!important}
+.install-shell{width:100%;max-width:340px;text-align:center}
+.install-logo{margin-bottom:40px}
+.install-logo img{width:160px;height:160px;border-radius:32px;box-shadow:0 24px 56px rgba(0,0,0,.4)}
 .install-btn{width:100%;padding:15px 20px;border:none;border-radius:14px;background:linear-gradient(180deg,#fff 0%,#f1f5f9 100%);color:var(--g900);font-family:var(--fn);font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 8px 28px rgba(0,0,0,.25);transition:transform .15s,box-shadow .15s}
 .install-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.3)}
 .install-btn:disabled{opacity:.55;cursor:wait;transform:none}
@@ -56,8 +66,7 @@ body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(
 .install-hint.on{display:block}
 .install-hint strong{display:block;margin-bottom:6px;font-size:13px}
 .install-status{min-height:20px;margin-top:14px;font-size:12.5px;color:rgba(255,255,255,.75)}
-.install-skip{margin-top:22px;background:none;border:none;color:rgba(255,255,255,.45);font-family:var(--fn);font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;padding:8px}
-.install-skip:hover{color:rgba(255,255,255,.75)}
+.install-skip{display:none}
 
 /* ─── LOGIN SCREEN ─── */
 #loginScreen{position:fixed;inset:0;background-color:var(--brand-bg-base);background-image:var(--brand-bg-pattern);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;overflow-y:auto}
@@ -526,12 +535,10 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 <script src="/js/wire-buttons.js"></script>
 
 <!-- ═══════════════ PWA INSTALL SPLASH ═══════════════ -->
-<div id="installScreen" class="hidden">
+<div id="installScreen">
   <div class="install-shell">
     <div class="install-logo">
       <img src="/assets/icono-gym.png" alt="Gymnastica">
-      <div class="install-name">GYMNASTICA</div>
-      <div class="install-tag">Sistema de Gestión Deportivo</div>
     </div>
     <button type="button" class="install-btn" id="pwaInstallBtn" onclick="instalarPwa()">Descargar app Gymnastica</button>
     <div class="install-hint" id="pwaIosHint">
@@ -546,7 +553,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 </div>
 
 <!-- ═══════════════ LOGIN ═══════════════ -->
-<div id="loginScreen">
+<div id="loginScreen" class="hidden">
   <div class="login-shell">
     <div class="login-logo">
       <div class="login-logo-icon"><img class="brand-icon brand-icon--lg" src="/assets/icono-gym.png" alt="Gymnastica"></div>
@@ -1661,8 +1668,8 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-pwa';
-const PWA_SKIP_KEY='gymnastica_skip_install';
+const APP_VERSION='2026.06.16-pwa2';
+const PWA_BROWSER_OK='gymnastica_browser_ok';
 const PWA_INSTALLED_KEY='gymnastica_pwa_installed';
 let pwaDeferredPrompt=null;
 const DATA_SEED_VERSION='2026.06.08.mx';
@@ -2037,7 +2044,6 @@ function buildUI(){
 }
 
 function showLogin(){
-  document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('topbar').style.display='none';
   document.getElementById('appMain').style.display='none';
   document.getElementById('appMain')?.classList.remove('padre-mode');
@@ -2045,7 +2051,14 @@ function showLogin(){
   currentUser=null;
   currentRole='';
   limpiarSesion();
-  selLoginMode('auth');
+  if(esAppInstalada()||sessionStorage.getItem(PWA_BROWSER_OK)==='1'){
+    document.documentElement.dataset.pwaMode='app';
+    mostrarLoginScreen();
+    selLoginMode('auth');
+  }else{
+    document.documentElement.dataset.pwaMode='install';
+    mostrarInstallScreen();
+  }
 }
 
 function renderSbNavItem(m){
@@ -7227,10 +7240,12 @@ async function instalarPwa(){
   actualizarBotonPwa();
 }
 function continuarEnNavegador(){
-  try{localStorage.setItem(PWA_SKIP_KEY,'1');}catch(e){}
+  try{sessionStorage.setItem(PWA_BROWSER_OK,'1');}catch(e){}
+  document.documentElement.dataset.pwaMode='app';
   entrarDesdeInstallGate();
 }
 function entrarDesdeInstallGate(){
+  document.documentElement.dataset.pwaMode='app';
   mostrarLoginScreen();
   if(!restaurarSesion()){
     selLoginMode('auth');
@@ -7240,11 +7255,18 @@ function initPwaGate(){
   setupPwaInstallListeners();
   registrarServiceWorker();
   actualizarBotonPwa();
-  if(esAppInstalada()||localStorage.getItem(PWA_SKIP_KEY)||localStorage.getItem(PWA_INSTALLED_KEY)){
+  try{
+    localStorage.removeItem('gymnastica_skip_install');
+    if(!esAppInstalada())localStorage.removeItem(PWA_INSTALLED_KEY);
+  }catch(e){}
+  const enApp=esAppInstalada()||sessionStorage.getItem(PWA_BROWSER_OK)==='1';
+  if(enApp){
+    document.documentElement.dataset.pwaMode='app';
     mostrarLoginScreen();
     restaurarSesion();
     return;
   }
+  document.documentElement.dataset.pwaMode='install';
   mostrarInstallScreen();
   setPwaInstallStatus(esIosSafari()?'Toca el botón para ver cómo instalar en iOS':'');
 }

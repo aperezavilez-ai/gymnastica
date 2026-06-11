@@ -1,5 +1,5 @@
-const CACHE = 'gymnastica-v1';
-const SHELL = ['/', '/index.html', '/assets/icono-gym.png', '/manifest.webmanifest'];
+const CACHE = 'gymnastica-v2';
+const SHELL = ['/assets/icono-gym.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -15,16 +15,38 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+function esHtml(req, url) {
+  return req.mode === 'navigate'
+    || url.pathname === '/' || url.pathname === '/index.html'
+    || (req.headers.get('accept') || '').includes('text/html');
+}
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/js/') || url.pathname.includes('cloud-config')) return;
+
+  if (esHtml(e.request, url)) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE).then((c) => c.put(e.request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fetched = fetch(e.request)
         .then((res) => {
-          if (res && res.status === 200 && url.pathname !== '/cloud-config.json') {
+          if (res && res.status === 200) {
             const clone = res.clone();
             caches.open(CACHE).then((c) => c.put(e.request, clone));
           }
