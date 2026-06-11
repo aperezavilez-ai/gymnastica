@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gymnastica">
 <link rel="icon" type="image/png" href="/assets/icono-gym.png">
-<link rel="apple-touch-icon" href="/assets/icono-gym.png">
+<link rel="apple-touch-icon" href="/assets/icon-512.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <title>Gymnastica — Sistema de Gestión Deportivo</title>
 <script>
@@ -65,8 +65,9 @@ html[data-pwa-mode="app"] #installScreen{display:none!important}
 .install-hint{margin-top:16px;padding:14px 16px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;font-size:12.5px;color:rgba(255,255,255,.9);line-height:1.55;text-align:left;display:none}
 .install-hint.on{display:block}
 .install-hint strong{display:block;margin-bottom:6px;font-size:13px}
-.install-status{min-height:20px;margin-top:14px;font-size:12.5px;color:rgba(255,255,255,.75)}
-.install-skip{display:none}
+.install-status{min-height:20px;margin-top:14px;font-size:12.5px;color:rgba(255,255,255,.85);line-height:1.5}
+.install-panel-btn{width:100%;margin-top:12px;padding:12px 20px;border:1.5px solid rgba(255,255,255,.35);border-radius:14px;background:transparent;color:rgba(255,255,255,.85);font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
+.install-panel-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.55);color:#fff}
 
 /* ─── LOGIN SCREEN ─── */
 #loginScreen{position:fixed;inset:0;background-color:var(--brand-bg-base);background-image:var(--brand-bg-pattern);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;overflow-y:auto}
@@ -541,14 +542,20 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
       <img src="/assets/icono-gym.png" alt="Gymnastica">
     </div>
     <button type="button" class="install-btn" id="pwaInstallBtn" onclick="instalarPwa()">Descargar app Gymnastica</button>
+    <button type="button" class="install-panel-btn" onclick="continuarEnNavegador()">Entrar al panel →</button>
     <div class="install-hint" id="pwaIosHint">
       <strong>📱 Instalar en iPhone / iPad</strong>
-      1. Toca el botón <b>Compartir</b> (cuadrado con flecha) en Safari<br>
+      1. Toca <b>Compartir</b> (cuadrado con flecha arriba) en Safari<br>
       2. Elige <b>Añadir a pantalla de inicio</b><br>
-      3. Confirma con <b>Añadir</b> y abre el ícono desde tu inicio
+      3. Toca <b>Añadir</b> y abre Gymnastica desde tu inicio
+    </div>
+    <div class="install-hint" id="pwaDesktopHint">
+      <strong>💻 Instalar en esta computadora</strong>
+      1. Busca el ícono <b>Instalar</b> o <b>➕</b> en la barra de dirección (junto a gymnastica.mx)<br>
+      2. O menú <b>⋮</b> arriba a la derecha → <b>Instalar Gymnastica</b><br>
+      3. Confirma y abre la app desde escritorio o menú inicio
     </div>
     <div class="install-status" id="pwaInstallStatus"></div>
-    <button type="button" class="install-skip" onclick="continuarEnNavegador()">Continuar en el navegador</button>
   </div>
 </div>
 
@@ -1668,7 +1675,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-pwa2';
+const APP_VERSION='2026.06.16-pwa3';
 const PWA_BROWSER_OK='gymnastica_browser_ok';
 const PWA_INSTALLED_KEY='gymnastica_pwa_installed';
 let pwaDeferredPrompt=null;
@@ -7171,73 +7178,64 @@ function setPwaInstallStatus(msg){
   const el=document.getElementById('pwaInstallStatus');
   if(el)el.textContent=msg||'';
 }
+function mostrarHintInstalacion(){
+  document.getElementById('pwaIosHint')?.classList.toggle('on',esIosSafari());
+  document.getElementById('pwaDesktopHint')?.classList.toggle('on',!esIosSafari());
+}
 function actualizarBotonPwa(){
   const btn=document.getElementById('pwaInstallBtn');
-  const ios=document.getElementById('pwaIosHint');
   if(!btn)return;
-  if(esIosSafari()){
-    btn.textContent='Cómo instalar en iPhone / iPad';
-    if(ios)ios.classList.add('on');
-  }else if(pwaDeferredPrompt){
-    btn.textContent='Descargar app Gymnastica';
-    btn.disabled=false;
-  }else if(esAppInstalada()){
-    btn.textContent='Abrir panel de inicio';
-    btn.disabled=false;
-  }else{
-    btn.textContent='Descargar app Gymnastica';
-    btn.disabled=false;
-  }
+  btn.disabled=false;
+  if(esAppInstalada())btn.textContent='Abrir panel de inicio';
+  else if(pwaDeferredPrompt)btn.textContent='Descargar app Gymnastica';
+  else if(esIosSafari())btn.textContent='Ver cómo instalar en iPhone';
+  else btn.textContent='Descargar app Gymnastica';
 }
 async function registrarServiceWorker(){
-  if(!('serviceWorker'in navigator))return;
+  if(!('serviceWorker'in navigator))return false;
   try{
-    await navigator.serviceWorker.register('/sw.js',{scope:'/'});
-  }catch(e){console.warn('SW',e);}
+    const reg=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+    await navigator.serviceWorker.ready;
+    return !!reg;
+  }catch(e){console.warn('SW',e);return false;}
 }
 function setupPwaInstallListeners(){
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();
     pwaDeferredPrompt=e;
     actualizarBotonPwa();
-    setPwaInstallStatus('Lista para instalar en este dispositivo');
+    setPwaInstallStatus('¡Listo! Toca el botón para instalar la app.');
   });
   window.addEventListener('appinstalled',()=>{
     pwaDeferredPrompt=null;
     try{localStorage.setItem(PWA_INSTALLED_KEY,'1');}catch(err){}
-    setPwaInstallStatus('¡App instalada! Abre Gymnastica desde tu pantalla de inicio.');
+    setPwaInstallStatus('¡App instalada! Abriendo panel…');
     actualizarBotonPwa();
-    setTimeout(()=>entrarDesdeInstallGate(),1800);
+    setTimeout(()=>entrarDesdeInstallGate(),1200);
   });
 }
 async function instalarPwa(){
   if(esAppInstalada()){entrarDesdeInstallGate();return;}
-  if(esIosSafari()){
-    document.getElementById('pwaIosHint')?.classList.add('on');
-    setPwaInstallStatus('Sigue los pasos de arriba en Safari');
-    return;
-  }
-  if(!pwaDeferredPrompt){
-    setPwaInstallStatus('Usa Chrome o Edge, o elige «Continuar en el navegador».');
-    return;
-  }
-  const btn=document.getElementById('pwaInstallBtn');
-  if(btn)btn.disabled=true;
-  try{
-    pwaDeferredPrompt.prompt();
-    const {outcome}=await pwaDeferredPrompt.userChoice;
-    pwaDeferredPrompt=null;
-    if(outcome==='accepted'){
-      setPwaInstallStatus('Instalando…');
-    }else{
-      setPwaInstallStatus('Instalación cancelada. Puedes intentar de nuevo.');
-      if(btn)btn.disabled=false;
+  if(pwaDeferredPrompt){
+    const btn=document.getElementById('pwaInstallBtn');
+    if(btn)btn.disabled=true;
+    try{
+      await pwaDeferredPrompt.prompt();
+      const {outcome}=await pwaDeferredPrompt.userChoice;
+      pwaDeferredPrompt=null;
+      if(outcome==='accepted')setPwaInstallStatus('Instalando la app…');
+      else setPwaInstallStatus('Instalación cancelada. Puedes intentar de nuevo o entrar al panel.');
+    }catch(e){
+      setPwaInstallStatus('No se abrió el instalador. Sigue los pasos de abajo.');
+      mostrarHintInstalacion();
     }
-  }catch(e){
-    setPwaInstallStatus('No se pudo instalar. Continúa en el navegador.');
     if(btn)btn.disabled=false;
+    actualizarBotonPwa();
+    return;
   }
-  actualizarBotonPwa();
+  mostrarHintInstalacion();
+  if(esIosSafari())setPwaInstallStatus('Sigue los 3 pasos de arriba en Safari.');
+  else setPwaInstallStatus('Sigue los pasos de arriba o usa «Entrar al panel».');
 }
 function continuarEnNavegador(){
   try{sessionStorage.setItem(PWA_BROWSER_OK,'1');}catch(e){}
@@ -7251,9 +7249,9 @@ function entrarDesdeInstallGate(){
     selLoginMode('auth');
   }
 }
-function initPwaGate(){
+async function initPwaGate(){
   setupPwaInstallListeners();
-  registrarServiceWorker();
+  await registrarServiceWorker();
   actualizarBotonPwa();
   try{
     localStorage.removeItem('gymnastica_skip_install');

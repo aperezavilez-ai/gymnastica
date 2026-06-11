@@ -1,5 +1,5 @@
-const CACHE = 'gymnastica-v2';
-const SHELL = ['/assets/icono-gym.png', '/manifest.webmanifest'];
+const CACHE = 'gymnastica-v3';
+const SHELL = ['/assets/icono-gym.png', '/assets/icon-192.png', '/assets/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
