@@ -721,12 +721,15 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
             <button class="btn btn-sm" style="margin-top:16px;background:var(--o600);color:#fff;border:none" type="button" onclick="event.stopPropagation();openMdl('newReinscripcion')">+ Re-inscribir</button>
           </div>
         </div>
-        <div class="card reg-card" onclick="openMdl('newEmpleado')">
+        <div class="card reg-card">
           <div class="card-b" style="padding:22px 20px">
             <div style="width:44px;height:44px;border-radius:10px;background:var(--p50);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px">💼</div>
-            <div style="font-size:15px;font-weight:700;color:var(--g900);margin-bottom:6px">Alta de empleado</div>
-            <div style="font-size:12.5px;color:var(--g500);line-height:1.45">Registrar entrenador u operador para checada y nómina.</div>
-            <button class="btn btn-sm" style="margin-top:16px;background:var(--p600);color:#fff;border:none" type="button" onclick="event.stopPropagation();openMdl('newEmpleado')">+ Nuevo empleado</button>
+            <div style="font-size:15px;font-weight:700;color:var(--g900);margin-bottom:6px">Personal y maestros</div>
+            <div style="font-size:12.5px;color:var(--g500);line-height:1.45">Ver quién está registrado, dar de alta o eliminar entrenadores y operadores.</div>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+              <button class="btn bw btn-sm" type="button" onclick="irConfigPersonal()">👥 Ver personal</button>
+              <button class="btn btn-sm" style="background:var(--p600);color:#fff;border:none" type="button" onclick="openMdl('newEmpleado')">+ Nuevo empleado</button>
+            </div>
           </div>
         </div>
       </div>
@@ -858,7 +861,7 @@ Gymnastica</textarea></div>
     <!-- ─ CONFIGURACIÓN (solo administradores) ─ -->
     <div class="screen" id="configScreen">
       <div class="ph">
-        <div><div class="ph-title">Configuración</div><div class="ph-sub">Datos del gimnasio y usuarios del sistema</div></div>
+        <div><div class="ph-title">Configuración</div><div class="ph-sub">Gimnasio · usuarios del sistema · personal y maestros</div></div>
         <div class="ph-acts"><button class="btn bp" onclick="guardarConfigPagina()">Guardar cambios</button></div>
       </div>
       <div class="g2" style="align-items:start;margin-bottom:20px">
@@ -875,12 +878,27 @@ Gymnastica</textarea></div>
           <div class="card-b" id="cfgResumen" style="font-size:13px;color:var(--g600);line-height:1.6"></div>
         </div>
       </div>
+      <div class="card" id="cfgPersonalSection" style="margin-bottom:20px">
+        <div class="card-h">
+          <div class="card-t">Personal y maestros</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn bp btn-sm" type="button" onclick="openMdl('newEmpleado')">+ Dar de alta</button>
+          </div>
+        </div>
+        <div class="card-b" style="padding:0 0 4px">
+          <p style="padding:12px 18px 0;font-size:12.5px;color:var(--g500);margin:0">Entrenadores y operadores registrados para checador y nómina.</p>
+          <div class="tw"><table><thead><tr><th>Nombre</th><th>Puesto</th><th>Tipo</th><th>NIP checador</th><th>Contacto</th><th>Acciones</th></tr></thead><tbody id="tbEmpleadosCfg"></tbody></table></div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-h">
-          <div class="card-t">Usuarios del sistema</div>
+          <div class="card-t">Usuarios del sistema (acceso al panel)</div>
           <button class="btn bp btn-sm" type="button" onclick="abrirAltaPersonal()">+ Añadir usuario</button>
         </div>
-        <div class="tw"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Puesto</th><th>Permisos</th><th>Acciones</th></tr></thead><tbody id="tbUsuariosCfg"></tbody></table></div>
+        <div class="card-b" style="padding:0 0 4px">
+          <p style="padding:12px 18px 0;font-size:12.5px;color:var(--g500);margin:0">Administradores y operadores que inician sesión en Gymnastica.</p>
+          <div class="tw"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Puesto</th><th>Permisos</th><th>Acciones</th></tr></thead><tbody id="tbUsuariosCfg"></tbody></table></div>
+        </div>
       </div>
     </div>
 
@@ -1708,7 +1726,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-config';
+const APP_VERSION='2026.06.16-personal';
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
@@ -1881,7 +1899,10 @@ function renderConfig(){
   const lista=Object.keys(USUARIOS);
   const admins=lista.filter(e=>USUARIOS[e]?.role==='admin').length;
   const ops=lista.filter(e=>USUARIOS[e]?.role==='operador').length;
-  if(res)res.innerHTML=`<div><strong>${lista.length}</strong> usuarios registrados</div><div>${admins} administrador${admins===1?'':'es'} · ${ops} operador${ops===1?'':'es'}</div><div style="margin-top:8px;font-size:12px;color:var(--g500)">Sesión: ${currentUser?.nombre||'—'}</div>`;
+  const nEmp=(DB.empleados||[]).length;
+  const nMaestros=(DB.empleados||[]).filter(e=>tipoNominaEmpleado(e)==='entrenador').length;
+  if(res)res.innerHTML=`<div><strong>${nEmp}</strong> en personal (${nMaestros} maestro${nMaestros===1?'':'s'})</div><div><strong>${lista.length}</strong> usuarios con acceso al panel</div><div>${admins} admin · ${ops} operador${ops===1?'':'es'}</div><div style="margin-top:8px;font-size:12px;color:var(--g500)">Sesión: ${currentUser?.nombre||'—'}</div>`;
+  renderEmpleadosCfg();
   const tb=document.getElementById('tbUsuariosCfg');
   if(!tb)return;
   const yo=currentUser?.loginEmail||'';
@@ -1913,6 +1934,50 @@ function guardarConfigPagina(){
   saveDB();
   renderConfig();
   toast('Configuración guardada','✓');
+}
+function irConfigPersonal(){
+  if(!esAdminSistema()){toast('Solo administradores pueden ver el personal','⚠️');return;}
+  goTo('config');
+  setTimeout(()=>document.getElementById('cfgPersonalSection')?.scrollIntoView({behavior:'smooth',block:'start'}),200);
+}
+function renderEmpleadosCfg(){
+  const tb=document.getElementById('tbEmpleadosCfg');
+  if(!tb)return;
+  ensureEmpleadosNomina();
+  const lista=DB.empleados||[];
+  const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  if(!lista.length){
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--g400)">Sin personal registrado · usa + Dar de alta</td></tr>';
+    return;
+  }
+  tb.innerHTML=lista.map(emp=>{
+    const id=emp.checId||emp.n;
+    const tipo=tipoNominaEmpleado(emp)==='entrenador'
+      ?'<span class="badge" style="background:var(--gr100);color:var(--gr700)">Maestro</span>'
+      :'<span class="badge bb">Operativo</span>';
+    return `<tr>
+      <td style="font-weight:700;color:var(--g900)">${emp.n}</td>
+      <td style="color:var(--g600)">${emp.rol||'—'}</td>
+      <td>${tipo}</td>
+      <td><span class="badge bb" style="font-family:monospace;letter-spacing:2px">${emp.pinChecador||'—'}</span></td>
+      <td style="font-size:12px;color:var(--g500)">${emp.tel||'—'}${emp.email?'<br>'+emp.email:''}</td>
+      <td><button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarEmpleado('${esc(id)}')">Eliminar</button></td>
+    </tr>`;
+  }).join('');
+}
+function eliminarEmpleado(id){
+  if(!esAdminSistema()){toast('Sin permisos','⚠️');return;}
+  const idx=DB.empleados.findIndex(e=>(e.checId||e.n)===id);
+  if(idx<0){toast('Empleado no encontrado','⚠️');return;}
+  const emp=DB.empleados[idx];
+  if(!confirm(`¿Eliminar a ${emp.n} del personal?\n\nSe quitará de nómina y checador.`))return;
+  DB.empleados.splice(idx,1);
+  DB.checadas=(DB.checadas||[]).filter(c=>c.personaId!==emp.checId&&c.nombre!==emp.n&&c.alumno!==emp.n);
+  saveDB();
+  renderConfig();
+  renderNomina();
+  renderChecador();
+  toast(`${emp.n} eliminado del personal`,'✓');
 }
 function eliminarUsuario(email){
   if(!esAdminSistema()){toast('Sin permisos','⚠️');return;}
@@ -4087,6 +4152,7 @@ function guardarEmpleado(){
   };
   DB.empleados.push(emp);
   saveDB();closeMdl('newEmpleado');renderAll();
+  renderConfig();
   detenerCamaraSelfie();
   let msg=`${nombre} registrado · PIN ${pin} · sueldo integrado $${empleadoSueldoTotal(emp).toLocaleString('es-MX')}`;
   if(enviarRecibo){
