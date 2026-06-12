@@ -1559,15 +1559,9 @@ Gymnastica</textarea></div>
 <script>
 // ═══════ DATA ═══════
 const DB={
-  estudiantes:[
-    {n:'Sofía Ramírez',edad:10,clase:'Gimnasia Artística',horario:'Lun/Mié 4pm',monto:'$850',est:'pagado',tutor:'Ana Ramírez',tel:'+52 33 1111 2222',email:'ana.ramirez@gmail.com',c:'#3b82f6',activo:true,checId:'est_001',pinChecador:'1001'},
-  ],
-  recibos:[
-    {folio:'GYM-001',alumno:'Sofía Ramírez',concepto:'Mensualidad Jun 2026',monto:'$850',fecha:'01/Jun/2026',metodo:'Tarjeta',enviado:true,enviadoEmail:true,enviadoWhatsapp:true},
-  ],
-  pagos:[
-    {id:'p1',a:'Sofía Ramírez',tipo:'Mensualidad',clase:'Artística',periodo:'Jun 2026',monto:'$850',fecha:'01/Jun/2026',est:'pagado',cuenta:'principal'},
-  ],
+  estudiantes:[],
+  recibos:[],
+  pagos:[],
   cuentas:[
     {id:'principal',nombre:'Cuenta principal BBVA',banco:'BBVA',clabe:'012 345 678901234567',saldo:18500},
     {id:'efectivo',nombre:'Caja efectivo',banco:'Efectivo',clabe:'—',saldo:3200},
@@ -1685,12 +1679,13 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-est-pago';
+const APP_VERSION='2026.06.16-real';
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
 let pwaDeferredPrompt=null;
-const DATA_SEED_VERSION='2026.06.08.mx';
+const DATA_SEED_VERSION='2026.06.16.real';
+const ALUMNOS_DEMO_NOMBRES=['Sofía Ramírez','Sofia Ramirez','Valentina Torres','Diego Hernández','Diego Hernandez','Camila Vega','Isabella Cruz','Mariana López'];
 const IS_LOCAL_DEV=/localhost|127\.0\.0\.1/.test(location.hostname);
 let estFiltro='';
 let estBusqueda='';
@@ -4414,12 +4409,7 @@ function envNotif(){
 
 // ═══════ RECIBOS ═══════
 function ensureRecibos(){
-  if(!DB.recibos?.length){
-    DB.recibos=[
-      {folio:'GYM-001',alumno:'Sofía Ramírez',concepto:'Mensualidad Jun 2026',monto:'$850',fecha:'01/Jun/2026',metodo:'Tarjeta',enviado:true,enviadoEmail:true,enviadoWhatsapp:true},
-      {folio:'GYM-002',alumno:'Valentina Torres',concepto:'Clase semanal Sem 22',monto:'$200',fecha:'01/Jun/2026',metodo:'Efectivo',enviado:true,enviadoEmail:true,enviadoWhatsapp:true},
-    ];
-  }
+  if(!DB.recibos)DB.recibos=[];
   DB.recibos.forEach(r=>{
     if(r.enviado===undefined)r.enviado=!!(r.enviadoEmail&&r.enviadoWhatsapp);
     if(r.enviadoEmail===undefined)r.enviadoEmail=!!r.enviado;
@@ -4428,17 +4418,7 @@ function ensureRecibos(){
 }
 
 function ensureEstudianteContacto(){
-  const emailsDef={
-    'Sofía Ramírez':'ana.ramirez@gmail.com',
-    'Valentina Torres':'carlos.torres@gmail.com',
-    'Diego Hernández':'maria.hernandez@gmail.com',
-    'Camila Vega':'jose.vega@gmail.com',
-    'Isabella Cruz':'laura.cruz@gmail.com',
-    'Mariana López':'pedro.lopez@gmail.com',
-  };
-  DB.estudiantes.forEach(e=>{
-    if(!e.email&&emailsDef[e.n])e.email=emailsDef[e.n];
-  });
+  /* correos solo desde registro real del alumno */
 }
 
 function nextReciboFolio(){
@@ -4797,30 +4777,7 @@ const CALENDARIO_DATA=[
   ]},
 ];
 
-const CALENDARIO_PERS_DATA=[
-  {dia:'Lun',fecha:'27 May',clases:[
-    {hora:'10:00am',alumno:'Sofía Ramírez',entrenador:'Ana García',duracion:'60 min',c:'#3b82f6'},
-    {hora:'3:00pm',alumno:'Diego Hernández',entrenador:'Roberto Jiménez',duracion:'45 min',c:'#ef4444'},
-  ]},
-  {dia:'Mar',fecha:'28 May',clases:[
-    {hora:'11:00am',alumno:'Valentina Torres',entrenador:'Paola Sánchez',duracion:'60 min',c:'#a855f7'},
-  ]},
-  {dia:'Mié',fecha:'29 May',clases:[
-    {hora:'9:30am',alumno:'Camila Vega',entrenador:'Carlos Mendoza',duracion:'45 min',c:'#22c55e'},
-    {hora:'5:30pm',alumno:'Mariana López',entrenador:'Paola Sánchez',duracion:'60 min',c:'#06b6d4'},
-  ]},
-  {dia:'Jue',fecha:'30 May',clases:[
-    {hora:'4:30pm',alumno:'Isabella Cruz',entrenador:'Ana García',duracion:'45 min',c:'#f97316'},
-  ]},
-  {dia:'Vie',fecha:'31 May',clases:[
-    {hora:'10:30am',alumno:'Sofía Ramírez',entrenador:'Ana García',duracion:'60 min',c:'#3b82f6'},
-    {hora:'6:00pm',alumno:'Diego Hernández',entrenador:'Roberto Jiménez',duracion:'45 min',c:'#ef4444'},
-  ]},
-  {dia:'Sáb',fecha:'1 Jun',clases:[
-    {hora:'8:00am',alumno:'Valentina Torres',entrenador:'Paola Sánchez',duracion:'60 min',c:'#a855f7'},
-    {hora:'12:00pm',alumno:'Camila Vega',entrenador:'Carlos Mendoza',duracion:'45 min',c:'#22c55e'},
-  ]},
-];
+const CALENDARIO_PERS_DATA=[];
 
 let calTabActivo='grupal';
 const CAL_MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -5776,26 +5733,8 @@ function renderInventario(){
 }
 
 // ═══════ LOGROS ═══════
-const LOGROS_DATA=[
-  {alumno:'Sofía Ramírez',    c:'#3b82f6', logros:[
-    {tipo:'🥇',nombre:'1er lugar — Copa Jalisco',fecha:'Mar 2026',desc:'Primer lugar en categoría Sub-10'},
-    {tipo:'🥈',nombre:'2do lugar — Torneo Estatal',fecha:'Nov 2025',desc:'Segunda posición en ejercicio de suelo'},
-  ]},
-  {alumno:'Valentina Torres', c:'#a855f7', logros:[
-    {tipo:'🥉',nombre:'3er lugar — Copa Regional',fecha:'Ene 2026',desc:'Tercer lugar en cinta'},
-  ]},
-  {alumno:'Camila Vega',      c:'#22c55e', logros:[
-    {tipo:'🏅',nombre:'Participación — Nacional',fecha:'Sep 2025',desc:'Representó al equipo en el campeonato'},
-    {tipo:'⭐',nombre:'Alumna destacada',fecha:'Jun 2025',desc:'Mejor desempeño del semestre'},
-  ]},
-  {alumno:'Mariana López',    c:'#06b6d4', logros:[
-    {tipo:'🥇',nombre:'1er lugar — Rítmica Sub-12',fecha:'Abr 2026',desc:'Campeona regional en aro'},
-  ]},
-];
 function ensureLogros(){
-  if(!DB.logros||!DB.logros.length){
-    DB.logros=LOGROS_DATA.map(a=>({alumno:a.alumno,c:a.c,logros:a.logros.map(l=>({...l}))}));
-  }
+  if(!DB.logros)DB.logros=[];
 }
 
 function abrirNuevoLogro(alumno){
@@ -6923,17 +6862,60 @@ function usuariosParaNube(){
   return out;
 }
 
+function normNombreAlumno(n){
+  return String(n||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+function esAlumnoDemo(nombre){
+  const s=normNombreAlumno(nombre);
+  return ALUMNOS_DEMO_NOMBRES.some(d=>normNombreAlumno(d)===s);
+}
+function limpiarDatosDemoAlumnos(){
+  const key='gymnastica_demo_purged_v2';
+  let cambio=false;
+  const filtrar=n=>!esAlumnoDemo(n);
+  const antesE=DB.estudiantes?.length||0;
+  DB.estudiantes=(DB.estudiantes||[]).filter(e=>filtrar(e.n));
+  if(DB.estudiantes.length!==antesE)cambio=true;
+  const antesP=DB.pagos?.length||0;
+  DB.pagos=(DB.pagos||[]).filter(p=>filtrar(p.a));
+  if(DB.pagos.length!==antesP)cambio=true;
+  const antesR=DB.recibos?.length||0;
+  DB.recibos=(DB.recibos||[]).filter(r=>filtrar(r.alumno));
+  if(DB.recibos.length!==antesR)cambio=true;
+  const antesC=DB.checadas?.length||0;
+  DB.checadas=(DB.checadas||[]).filter(c=>filtrar(c.alumno||c.nombre||c.n));
+  if(DB.checadas.length!==antesC)cambio=true;
+  const antesCp=DB.clasesPers?.length||0;
+  DB.clasesPers=(DB.clasesPers||[]).filter(c=>filtrar(c.alumno));
+  if(DB.clasesPers.length!==antesCp)cambio=true;
+  const antesM=DB.registrosMedicos?.length||0;
+  DB.registrosMedicos=(DB.registrosMedicos||[]).filter(r=>filtrar(r.alumno));
+  if(DB.registrosMedicos.length!==antesM)cambio=true;
+  const antesL=DB.logros?.length||0;
+  DB.logros=(DB.logros||[]).filter(l=>filtrar(l.alumno));
+  if(DB.logros.length!==antesL)cambio=true;
+  if(cambio||!localStorage.getItem(key)){
+    localStorage.setItem(key,'1');
+    return true;
+  }
+  return false;
+}
 function applyDataSeedIfNeeded(){
   const seedKey='gymnastica_seed_version';
-  if(localStorage.getItem(seedKey)===DATA_SEED_VERSION)return;
-  Object.keys(USUARIOS).forEach(k=>delete USUARIOS[k]);
-  Object.assign(USUARIOS,JSON.parse(JSON.stringify(USUARIOS_DEFAULT)));
-  DB.estudiantes=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.estudiantes));
-  DB.empleados=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.empleados));
-  DB.pagos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.pagos));
-  DB.recibos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.recibos));
-  DB.registrosMedicos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.registrosMedicos));
-  DB.checadas=[];
+  const prev=localStorage.getItem(seedKey);
+  if(prev===DATA_SEED_VERSION)return;
+  if(!prev){
+    Object.keys(USUARIOS).forEach(k=>delete USUARIOS[k]);
+    Object.assign(USUARIOS,JSON.parse(JSON.stringify(USUARIOS_DEFAULT)));
+    DB.estudiantes=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.estudiantes));
+    DB.empleados=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.empleados));
+    DB.pagos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.pagos));
+    DB.recibos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.recibos));
+    DB.registrosMedicos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.registrosMedicos));
+    DB.checadas=[];
+  }else{
+    limpiarDatosDemoAlumnos();
+  }
   localStorage.setItem(seedKey,DATA_SEED_VERSION);
   try{
     localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
@@ -7402,6 +7384,7 @@ async function initPersistence(){
   if(!nubeLista){
     loadDB();
   }
+  if(limpiarDatosDemoAlumnos())saveDB();
   ensureCuentas();
   ensureRecibos();
   ensureRegistrosMedicos();
