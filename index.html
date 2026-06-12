@@ -1681,7 +1681,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-pwa6';
+const APP_VERSION='2026.06.16-pagos';
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
@@ -3857,6 +3857,13 @@ function guardarEst(){
   DB.estudiantes.push(est);
   const pin=est.pinChecador;
   const calN=sincronizarHorarioAlumnoCalendario(est,{tipoPago});
+  DB.pagos.push({
+    id:'p'+Date.now(),
+    a:nombre,tipo:tipoPago,clase:est.clase,
+    periodo:getPeriodoActual(),monto,
+    fecha:'—',est:'pendiente',cuenta:'principal'
+  });
+  syncEstadoPagoAlumno(nombre);
   saveDB();closeMdl('newEst');renderAll();
   detenerCamaraSelfie();
   const calMsg=calN?` · ${calN} clase${calN===1?'':'s'} en calendario`:'';
