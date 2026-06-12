@@ -18,7 +18,8 @@
   var app=window.matchMedia('(display-mode: standalone)').matches
     ||window.matchMedia('(display-mode: fullscreen)').matches
     ||window.navigator.standalone===true
-    ||sessionStorage.getItem('gymnastica_pwa_lista')==='1';
+    ||sessionStorage.getItem('gymnastica_pwa_lista')==='1'
+    ||localStorage.getItem('gymnastica_pwa_lista')==='1';
   document.documentElement.dataset.pwaMode=app?'app':'install';
 })();
 </script>
@@ -54,6 +55,8 @@ body{font-family:var(--fn);background:var(--brand-bg-base);background-image:var(
 html[data-pwa-mode="install"] #loginScreen{display:none!important}
 html[data-pwa-mode="install"] #installScreen{display:flex!important}
 html[data-pwa-mode="app"] #installScreen{display:none!important}
+html[data-pwa-mode="app"] #loginScreen{display:flex!important}
+html[data-pwa-mode="app"] #loginScreen.hidden{display:none!important}
 #installScreen{position:fixed;inset:0;background-color:var(--brand-bg-base);background-image:var(--brand-bg-pattern);background-size:cover;background-position:center;display:none;align-items:center;justify-content:center;z-index:250;padding:24px;overflow-y:auto}
 #installScreen.hidden{display:none!important}
 .install-shell{width:100%;max-width:340px;text-align:center}
@@ -571,7 +574,7 @@ label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;d
 </div>
 
 <!-- ═══════════════ LOGIN ═══════════════ -->
-<div id="loginScreen" class="hidden">
+<div id="loginScreen">
   <div class="login-shell">
     <div class="login-logo">
       <div class="login-logo-icon"><img class="brand-icon brand-icon--lg" src="/assets/icono-gym.png" alt="Gymnastica"></div>
@@ -1732,7 +1735,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.17-sueldo-diario';
+const APP_VERSION='2026.06.17-sesion-update';
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
 let configScrollTarget=null;
@@ -2177,23 +2180,32 @@ function doLogin(){
 }
 
 function guardarSesion(email){
-  try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({email,ts:Date.now()}));}catch(e){}
+  const data=JSON.stringify({email,ts:Date.now()});
+  try{sessionStorage.setItem(SESSION_KEY,data);}catch(e){}
+  try{localStorage.setItem(SESSION_KEY,data);}catch(e){}
+}
+
+function leerSesionGuardada(){
+  try{
+    return sessionStorage.getItem(SESSION_KEY)||localStorage.getItem(SESSION_KEY);
+  }catch(e){return null;}
 }
 
 function limpiarSesion(){
   try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}
+  try{localStorage.removeItem(SESSION_KEY);}catch(e){}
   limpiarConfigAcceso();
 }
 
-async function entrarSistema(usuario,email){
-  currentUser=usuario;
-  currentUser.loginEmail=email;
-  currentRole=usuario.role;
-  document.getElementById('loginError').style.display='none';
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('topbar').style.display='flex';
-  document.getElementById('appMain').style.display='flex';
-  buildUI();
+function puedeIrAVista(view){
+  if(!view)return false;
+  if(currentRole==='padre')return view==='padre';
+  if(view==='padre')return false;
+  if(view==='config')return currentRole==='admin'&&configAccesoDesbloqueado();
+  return getMenuUsuario().some(m=>m.id===view);
+}
+
+async function sincronizarNubeTrasEntrada(){
   setCloudSyncVisual('syncing');
   if(await asegurarModuloNube()){
     try{
@@ -2208,12 +2220,26 @@ async function entrarSistema(usuario,email){
   }else{
     setCloudSyncVisual('off');
   }
-  goTo(currentRole==='padre'?'padre':'dashboard');
+}
+
+async function entrarSistema(usuario,email){
+  currentUser=usuario;
+  currentUser.loginEmail=email;
+  currentRole=usuario.role;
+  document.getElementById('loginError').style.display='none';
+  document.getElementById('loginScreen')?.classList.add('hidden');
+  document.getElementById('topbar').style.display='flex';
+  document.getElementById('appMain').style.display='flex';
+  buildUI();
+  const lastView=sessionStorage.getItem(LAST_VIEW_KEY);
+  const def=currentRole==='padre'?'padre':'dashboard';
+  goTo(puedeIrAVista(lastView)?lastView:def);
+  sincronizarNubeTrasEntrada();
 }
 
 function restaurarSesion(){
   try{
-    const raw=sessionStorage.getItem(SESSION_KEY);
+    const raw=leerSesionGuardada();
     if(!raw)return false;
     const ses=JSON.parse(raw);
     const email=ses?.email;
@@ -2328,6 +2354,7 @@ function renderSbNavItem(m){
 
 // ═══════ NAV ═══════
 function goTo(view,btn,sbIt){
+  if(currentUser&&view)try{sessionStorage.setItem(LAST_VIEW_KEY,view);}catch(e){}
   if(currentUser&&nubeDisponible())pullFromCloud(true,false);
   if(view==='config'){
     if(!esAdminSistema()){toast('Solo administradores acceden a Configuración','⚠️');return;}
@@ -7144,6 +7171,7 @@ const STORAGE_KEY='gymnastica_db_v1';
 const USERS_KEY='gymnastica_users_v1';
 const CLOUD_AT_KEY='gymnastica_cloud_at';
 const SESSION_KEY='gymnastica_session_v1';
+const LAST_VIEW_KEY='gymnastica_last_view';
 let cloudModule=null;
 let cloudActive=false;
 let cloudSyncTimer=null;
@@ -7691,8 +7719,17 @@ function actualizarBotonPwa(){
 async function registrarServiceWorker(){
   if(!('serviceWorker'in navigator))return false;
   try{
-    const reg=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+    const reg=await navigator.serviceWorker.register('/sw.js?'+APP_VERSION,{scope:'/'});
     await navigator.serviceWorker.ready;
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(!nw)return;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller&&currentUser){
+          toast('Actualización lista · sigue trabajando con normalidad','ℹ️');
+        }
+      });
+    });
     return !!reg;
   }catch(e){console.warn('SW',e);return false;}
 }
@@ -7741,17 +7778,28 @@ async function instalarPwa(){
   await animarProgresoDescarga(pwaProgressVal,100,500);
   await finalizarDescargaPwa();
 }
+function marcarPwaLista(){
+  try{
+    sessionStorage.setItem(PWA_LISTA_KEY,'1');
+    localStorage.setItem(PWA_LISTA_KEY,'1');
+  }catch(e){}
+}
 function abrirPanelTrasDescarga(){
-  try{sessionStorage.setItem(PWA_LISTA_KEY,'1');}catch(e){}
+  marcarPwaLista();
   document.documentElement.dataset.pwaMode='app';
   mostrarLoginScreen();
   if(!restaurarSesion())selLoginMode('auth');
 }
 function pwaAccesoPermitido(){
-  return esAppInstalada()||sessionStorage.getItem(PWA_LISTA_KEY)==='1';
+  return esAppInstalada()
+    ||sessionStorage.getItem(PWA_LISTA_KEY)==='1'
+    ||localStorage.getItem(PWA_LISTA_KEY)==='1';
 }
-async function initPwaGate(){
-  setupPwaInstallListeners();
+function initPwaGate(){
+  if(!window.__pwaListenersOk){
+    setupPwaInstallListeners();
+    window.__pwaListenersOk=true;
+  }
   registrarServiceWorker();
   actualizarBotonPwa();
   try{
@@ -7774,6 +7822,7 @@ async function initPersistence(){
   applyDataSeedIfNeeded();
   loadUsers();
   ensureUsuariosCredenciales();
+  initPwaGate();
   let nubeLista=false;
   try{
     await cargarConfigNube();
@@ -7810,7 +7859,7 @@ async function initPersistence(){
   }
   try{localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));}catch(e){}
   cloudDbUpdatedAt=localStorage.getItem(CLOUD_AT_KEY);
-  initPwaGate();
+  if(currentUser)renderAll();
   document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('loginPass')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   const ver=document.getElementById('appVersion');
