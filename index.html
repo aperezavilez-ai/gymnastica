@@ -1735,7 +1735,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.17-sesion-update';
+const APP_VERSION='2026.06.17-purge-sofia';
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
 let configScrollTarget=null;
@@ -2501,6 +2501,7 @@ function esMismoAlumno(a,b){
   return norm(a)===norm(b);
 }
 function eliminarDatosAlumno(nombre){
+  registrarAlumnoEliminado(nombre);
   const est=(DB.estudiantes||[]).find(e=>esMismoAlumno(e.n,nombre));
   const checId=est?.checId;
   (DB.pagos||[]).filter(p=>esMismoAlumno(p.a,nombre)&&p.tipo==='Competencia').forEach(p=>{
@@ -2938,6 +2939,7 @@ function eliminarCobro(pagoId){
     if(comp&&comp.ins>0)comp.ins--;
   }
   const alumno=p.a;
+  registrarPagoEliminado(p.id,alumno);
   DB.pagos.splice(idx,1);
   if((DB.estudiantes||[]).some(e=>esMismoAlumno(e.n,alumno)))syncEstadoPagoAlumno(alumno);
   saveDB();
@@ -7303,18 +7305,52 @@ function esAlumnoDemo(nombre){
   const s=normNombreAlumno(nombre);
   return ALUMNOS_DEMO_NOMBRES.some(d=>normNombreAlumno(d)===s);
 }
+const ELIMINADOS_KEY='gymnastica_eliminados_v1';
+function cargarEliminados(){
+  try{
+    const r=localStorage.getItem(ELIMINADOS_KEY);
+    if(!r)return {alumnos:[],pagos:[]};
+    const d=JSON.parse(r);
+    return {alumnos:Array.isArray(d.alumnos)?d.alumnos:[],pagos:Array.isArray(d.pagos)?d.pagos:[]};
+  }catch(e){return {alumnos:[],pagos:[]};}
+}
+function guardarEliminados(el){
+  try{localStorage.setItem(ELIMINADOS_KEY,JSON.stringify(el));}catch(e){}
+}
+function registrarAlumnoEliminado(nombre){
+  if(!nombre)return;
+  const el=cargarEliminados();
+  const n=normNombreAlumno(nombre);
+  if(!el.alumnos.some(a=>normNombreAlumno(a)===n))el.alumnos.push(String(nombre).trim());
+  guardarEliminados(el);
+}
+function registrarPagoEliminado(pagoId,alumnoNombre){
+  const el=cargarEliminados();
+  if(pagoId&&!el.pagos.includes(pagoId))el.pagos.push(pagoId);
+  guardarEliminados(el);
+  if(alumnoNombre)registrarAlumnoEliminado(alumnoNombre);
+}
+function nombreAlumnoBloqueado(nombre){
+  if(!nombre)return false;
+  if(esAlumnoDemo(nombre))return true;
+  const n=normNombreAlumno(nombre);
+  return cargarEliminados().alumnos.some(a=>normNombreAlumno(a)===n);
+}
+function asegurarDemoBloqueados(){
+  ALUMNOS_DEMO_NOMBRES.forEach(n=>registrarAlumnoEliminado(n));
+}
 function limpiarDatosDemoAlumnos(){
-  const key='gymnastica_demo_purged_v2';
   let cambio=false;
-  const filtrar=n=>!esAlumnoDemo(n);
+  const filtrar=n=>!nombreAlumnoBloqueado(n);
   const antesE=DB.estudiantes?.length||0;
   DB.estudiantes=(DB.estudiantes||[]).filter(e=>filtrar(e.n));
   if(DB.estudiantes.length!==antesE)cambio=true;
+  const pagosElim=new Set(cargarEliminados().pagos);
   const antesP=DB.pagos?.length||0;
-  DB.pagos=(DB.pagos||[]).filter(p=>filtrar(p.a));
+  DB.pagos=(DB.pagos||[]).filter(p=>!pagosElim.has(p.id)&&filtrar(p.a));
   if(DB.pagos.length!==antesP)cambio=true;
   const antesR=DB.recibos?.length||0;
-  DB.recibos=(DB.recibos||[]).filter(r=>filtrar(r.alumno));
+  DB.recibos=(DB.recibos||[]).filter(r=>filtrar(r.alumno||r.empleado));
   if(DB.recibos.length!==antesR)cambio=true;
   const antesC=DB.checadas?.length||0;
   DB.checadas=(DB.checadas||[]).filter(c=>filtrar(c.alumno||c.nombre||c.n));
@@ -7328,11 +7364,22 @@ function limpiarDatosDemoAlumnos(){
   const antesL=DB.logros?.length||0;
   DB.logros=(DB.logros||[]).filter(l=>filtrar(l.alumno));
   if(DB.logros.length!==antesL)cambio=true;
-  if(cambio||!localStorage.getItem(key)){
-    localStorage.setItem(key,'1');
-    return true;
-  }
-  return false;
+  return cambio;
+}
+function purgarPagosSinAlumno(){
+  const registrados=new Set((DB.estudiantes||[]).map(e=>normNombreAlumno(e.n)));
+  const antes=DB.pagos?.length||0;
+  DB.pagos=(DB.pagos||[]).filter(p=>{
+    if(cargarEliminados().pagos.includes(p.id))return false;
+    if(nombreAlumnoBloqueado(p.a))return false;
+    return registrados.has(normNombreAlumno(p.a));
+  });
+  return DB.pagos.length!==antes;
+}
+function aplicarReglasLimpiezaDatos(){
+  let cambio=limpiarDatosDemoAlumnos();
+  if(purgarPagosSinAlumno())cambio=true;
+  return cambio;
 }
 function applyDataSeedIfNeeded(){
   const seedKey='gymnastica_seed_version';
@@ -7348,7 +7395,7 @@ function applyDataSeedIfNeeded(){
     DB.registrosMedicos=JSON.parse(JSON.stringify(DB_SEED_SNAPSHOT.registrosMedicos));
     DB.checadas=[];
   }else{
-    limpiarDatosDemoAlumnos();
+    aplicarReglasLimpiezaDatos();
   }
   localStorage.setItem(seedKey,DATA_SEED_VERSION);
   try{
@@ -7488,11 +7535,13 @@ async function pullFromCloud(silent,force){
     }
     if(remote.usuarios)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
+    const sucio=aplicarReglasLimpiezaDatos();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
     localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
     marcarCloudActualizado(remote.dbUpdatedAt);
     lastRemoteFingerprint=fp;
     cloudActive=true;
+    if(sucio)subirANubeAhora();
     if(currentUser){
       renderAll();
       setCloudSyncVisual('live');
@@ -7567,7 +7616,8 @@ async function loadFromCloud(){
     if(hasDb)applyDbSnapshot(remote.db);
     if(hasUsers)applyUsersSnapshot(remote.usuarios);
     ensureUsuariosCredenciales();
-    if(hasDb||hasUsers){
+    const sucio=aplicarReglasLimpiezaDatos();
+    if(hasDb||hasUsers||sucio){
       localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
       localStorage.setItem(USERS_KEY,JSON.stringify(USUARIOS));
     }
@@ -7576,6 +7626,7 @@ async function loadFromCloud(){
       lastRemoteFingerprint=fingerprintRemoto(remote.db,remote.dbUpdatedAt);
     }
     cloudActive=true;
+    if(sucio)subirANubeAhora();
     setCloudStatus('☁️ Conectado a Supabase','var(--gr700)');
     return true;
   }catch(e){
@@ -7819,6 +7870,7 @@ function initPwaGate(){
 }
 
 async function initPersistence(){
+  asegurarDemoBloqueados();
   applyDataSeedIfNeeded();
   loadUsers();
   ensureUsuariosCredenciales();
@@ -7838,8 +7890,10 @@ async function initPersistence(){
   }
   if(!nubeLista){
     loadDB();
+    if(aplicarReglasLimpiezaDatos())saveDB();
+  }else if(aplicarReglasLimpiezaDatos()){
+    saveDB();
   }
-  if(limpiarDatosDemoAlumnos())saveDB();
   ensureCuentas();
   ensureRecibos();
   ensureRegistrosMedicos();
