@@ -322,6 +322,7 @@ select.finp::placeholder,input.finp::placeholder{color:var(--g300)}
 .cal-slot{position:relative;padding-right:26px!important}
 .cal-slot-del{position:absolute;top:6px;right:6px;width:20px;height:20px;border:1px solid var(--r100);border-radius:50%;background:var(--r50);color:var(--r600);font-size:11px;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;padding:0;transition:all .15s}
 .cal-slot-del:hover{background:var(--r100);border-color:var(--r200);transform:scale(1.05)}
+.pago-del-btn{position:static;flex-shrink:0;width:26px;height:26px;font-size:12px}
 label.flb{font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:5px;display:block}
 
 /* ─── TOAST ─── */
@@ -1555,15 +1556,20 @@ Gymnastica</textarea></div>
   </div>
 </div>
 
-<!-- CONFIGURACIÓN -->
-<div class="mbg" id="mdl-config" onclick="if(event.target.classList.contains('mbg'))closeMdl('config')">
-  <div class="mdl">
-    <div class="mdl-t">Configuración</div>
-    <div class="mdl-s">Datos del gimnasio y contacto</div>
-    <div class="fg"><label class="flb">Nombre del gimnasio</label><input class="finp" id="cfgNombre"></div>
-    <div class="g2"><div class="fg"><label class="flb">Teléfono</label><input class="finp" id="cfgTel"></div><div class="fg"><label class="flb">Correo</label><input class="finp" id="cfgEmail" type="email"></div></div>
-    <div class="fg"><label class="flb">Dirección</label><input class="finp" id="cfgDir"></div>
-    <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('config')">Cancelar</button><button type="button" class="btn bp" onclick="guardarConfig()">Guardar</button></div>
+<!-- ACCESO CONFIGURACIÓN (contraseña admin) -->
+<div class="mbg" id="mdl-configAcceso" onclick="if(event.target.classList.contains('mbg'))closeMdl('configAcceso')">
+  <div class="mdl" style="max-width:400px">
+    <div class="mdl-t">Acceso a Configuración</div>
+    <div class="mdl-s">Solo administradores · confirma tu contraseña para continuar</div>
+    <div style="padding:12px 14px;background:var(--b50);border:1px solid var(--b200);border-radius:10px;margin-bottom:16px;font-size:13px;color:var(--g700)">
+      Sesión: <strong id="configAccesoUser">—</strong>
+    </div>
+    <div class="fg" style="margin-bottom:8px">
+      <label class="flb">Contraseña de administrador</label>
+      <input class="finp" id="configAccesoPass" type="password" placeholder="Tu contraseña de acceso" autocomplete="current-password" onkeydown="if(event.key==='Enter')verificarAccesoConfig()">
+    </div>
+    <div id="configAccesoError" style="display:none;font-size:12.5px;color:var(--r600);margin-bottom:8px">Contraseña incorrecta</div>
+    <div class="mdl-act"><button type="button" class="btn bw" onclick="closeMdl('configAcceso')">Cancelar</button><button type="button" class="btn bp" onclick="verificarAccesoConfig()">Ingresar</button></div>
   </div>
 </div>
 
@@ -1726,7 +1732,10 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-personal';
+const APP_VERSION='2026.06.17-eliminar-alumno';
+const CONFIG_ACC_KEY='gymnastica_config_unlock';
+let configAccesoPendingSbIt=null;
+let configScrollTarget=null;
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
@@ -1836,6 +1845,65 @@ function togglePersonalPermisosUI(){
 function esAdminSistema(){
   return currentRole==='admin';
 }
+function esEmailUsuarioKey(key){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(key||'').trim().toLowerCase());
+}
+function listaUsuariosCfg(){
+  ensureUsuariosCredenciales();
+  const keys=new Set([...Object.keys(USUARIOS_DEFAULT),...Object.keys(USUARIOS)]);
+  return [...keys].filter(k=>esEmailUsuarioKey(k)&&USUARIOS[k]&&typeof USUARIOS[k]==='object').sort((a,b)=>{
+    const na=(USUARIOS[a]?.nombre||a).toLowerCase();
+    const nb=(USUARIOS[b]?.nombre||b).toLowerCase();
+    return na.localeCompare(nb,'es');
+  });
+}
+function renderConfigIfVisible(){
+  if(document.getElementById('configScreen')?.classList.contains('on'))renderConfig();
+}
+function configAccesoDesbloqueado(){
+  try{
+    const raw=sessionStorage.getItem(CONFIG_ACC_KEY);
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    return String(d.email||'').toLowerCase()===(currentUser?.loginEmail||'').toLowerCase();
+  }catch(e){return false;}
+}
+function marcarConfigDesbloqueado(){
+  try{
+    sessionStorage.setItem(CONFIG_ACC_KEY,JSON.stringify({email:(currentUser?.loginEmail||'').toLowerCase(),ts:Date.now()}));
+  }catch(e){}
+}
+function limpiarConfigAcceso(){
+  try{sessionStorage.removeItem(CONFIG_ACC_KEY);}catch(e){}
+}
+function solicitarAccesoConfig(sbIt){
+  if(!esAdminSistema()){toast('Solo administradores acceden a Configuración','⚠️');return;}
+  if(configAccesoDesbloqueado()){goTo('config',null,sbIt);return;}
+  configAccesoPendingSbIt=sbIt||null;
+  const err=document.getElementById('configAccesoError');
+  if(err)err.style.display='none';
+  const inp=document.getElementById('configAccesoPass');
+  if(inp)inp.value='';
+  const lbl=document.getElementById('configAccesoUser');
+  if(lbl)lbl.textContent=currentUser?.nombre||'Administrador';
+  openMdl('configAcceso');
+  setTimeout(()=>inp?.focus(),120);
+}
+function verificarAccesoConfig(){
+  ensureUsuariosCredenciales();
+  const pass=document.getElementById('configAccesoPass')?.value?.trim()||'';
+  const email=(currentUser?.loginEmail||'').toLowerCase();
+  const u=USUARIOS[email];
+  if(!u||String(u.pass)!==pass){
+    const err=document.getElementById('configAccesoError');
+    if(err){err.textContent='Contraseña incorrecta';err.style.display='block';}
+    return;
+  }
+  marcarConfigDesbloqueado();
+  closeMdl('configAcceso');
+  goTo('config',null,configAccesoPendingSbIt);
+  configAccesoPendingSbIt=null;
+}
 function abrirAltaPersonal(){
   if(!esAdminSistema()){toast('Solo administradores pueden gestionar usuarios','⚠️');return;}
   ['personalNombre','personalEmail','personalPass','personalPuesto'].forEach(id=>{
@@ -1888,6 +1956,7 @@ function rolUsuarioLabel(u){
 }
 function renderConfig(){
   if(!esAdminSistema())return;
+  ensureUsuariosCredenciales();
   ensureConfig();
   const c=DB.config;
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v??'';};
@@ -1896,7 +1965,7 @@ function renderConfig(){
   set('cfgEmail',c.email);
   set('cfgDir',c.direccion);
   const res=document.getElementById('cfgResumen');
-  const lista=Object.keys(USUARIOS);
+  const lista=listaUsuariosCfg();
   const admins=lista.filter(e=>USUARIOS[e]?.role==='admin').length;
   const ops=lista.filter(e=>USUARIOS[e]?.role==='operador').length;
   const nEmp=(DB.empleados||[]).length;
@@ -1905,11 +1974,16 @@ function renderConfig(){
   renderEmpleadosCfg();
   const tb=document.getElementById('tbUsuariosCfg');
   if(!tb)return;
-  const yo=currentUser?.loginEmail||'';
+  const yo=(currentUser?.loginEmail||'').toLowerCase();
   const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  if(!lista.length){
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--g400)">Sin usuarios registrados · usa + Añadir usuario</td></tr>';
+    return;
+  }
   tb.innerHTML=lista.map(email=>{
     const u=USUARIOS[email];
-    const esYo=email===yo;
+    if(!u)return '';
+    const esYo=email.toLowerCase()===yo;
     const rol=u.role==='admin'?'<span class="badge" style="background:var(--p100);color:var(--p700)">Admin</span>':'<span class="badge bb">Operador</span>';
     const nPerm=u.role==='admin'?'Acceso total':String((u.permisos||[]).length)+' módulos';
     return `<tr>
@@ -1918,9 +1992,13 @@ function renderConfig(){
       <td>${rol}</td>
       <td style="color:var(--g600)">${u.puesto||'—'}</td>
       <td style="font-size:12px;color:var(--g500)">${nPerm}</td>
-      <td>${esYo?'<span style="font-size:11px;color:var(--g400)">Cuenta activa</span>':`<button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarUsuario('${esc(email)}')">Eliminar</button>`}</td>
+      <td>${esYo?'<span style="font-size:11px;color:var(--g400)">Cuenta activa</span>':`<button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarUsuario('${esc(email)}')">Eliminar usuario</button>`}</td>
     </tr>`;
   }).join('');
+  if(configScrollTarget==='personal'){
+    configScrollTarget=null;
+    setTimeout(()=>document.getElementById('cfgPersonalSection')?.scrollIntoView({behavior:'smooth',block:'start'}),200);
+  }
 }
 function guardarConfigPagina(){
   if(!esAdminSistema()){toast('Sin permisos','⚠️');return;}
@@ -1937,8 +2015,9 @@ function guardarConfigPagina(){
 }
 function irConfigPersonal(){
   if(!esAdminSistema()){toast('Solo administradores pueden ver el personal','⚠️');return;}
-  goTo('config');
-  setTimeout(()=>document.getElementById('cfgPersonalSection')?.scrollIntoView({behavior:'smooth',block:'start'}),200);
+  configScrollTarget='personal';
+  if(configAccesoDesbloqueado())goTo('config');
+  else solicitarAccesoConfig(null);
 }
 function renderEmpleadosCfg(){
   const tb=document.getElementById('tbEmpleadosCfg');
@@ -1952,16 +2031,18 @@ function renderEmpleadosCfg(){
   }
   tb.innerHTML=lista.map(emp=>{
     const id=emp.checId||emp.n;
-    const tipo=tipoNominaEmpleado(emp)==='entrenador'
+    const esMaestro=tipoNominaEmpleado(emp)==='entrenador';
+    const tipo=esMaestro
       ?'<span class="badge" style="background:var(--gr100);color:var(--gr700)">Maestro</span>'
       :'<span class="badge bb">Operativo</span>';
+    const btnElim=esMaestro?'Eliminar maestro':'Eliminar personal';
     return `<tr>
       <td style="font-weight:700;color:var(--g900)">${emp.n}</td>
       <td style="color:var(--g600)">${emp.rol||'—'}</td>
       <td>${tipo}</td>
       <td><span class="badge bb" style="font-family:monospace;letter-spacing:2px">${emp.pinChecador||'—'}</span></td>
       <td style="font-size:12px;color:var(--g500)">${emp.tel||'—'}${emp.email?'<br>'+emp.email:''}</td>
-      <td><button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarEmpleado('${esc(id)}')">Eliminar</button></td>
+      <td><button type="button" class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarEmpleado('${esc(id)}')">${btnElim}</button></td>
     </tr>`;
   }).join('');
 }
@@ -2101,6 +2182,7 @@ function guardarSesion(email){
 
 function limpiarSesion(){
   try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}
+  limpiarConfigAcceso();
 }
 
 async function entrarSistema(usuario,email){
@@ -2214,7 +2296,7 @@ function buildUI(){
       ${menu.map(renderSbNavItem).join('')}
     </div>
     <div class="sb-bot">
-      ${currentRole==='admin'?'<div class="sb-it" onclick="goTo(\'config\',null,this)">⚙️ Configuración</div>':''}
+      ${currentRole==='admin'?'<div class="sb-it" onclick="solicitarAccesoConfig(this)">⚙️ Configuración</div>':''}
       <div class="sb-it" onclick="showLogin()">🚪 Cerrar sesión</div>
     </div>`;
   }
@@ -2247,7 +2329,10 @@ function renderSbNavItem(m){
 // ═══════ NAV ═══════
 function goTo(view,btn,sbIt){
   if(currentUser&&nubeDisponible())pullFromCloud(true,false);
-  if(view==='config'&&!esAdminSistema()){toast('Solo administradores acceden a Configuración','⚠️');return;}
+  if(view==='config'){
+    if(!esAdminSistema()){toast('Solo administradores acceden a Configuración','⚠️');return;}
+    if(!configAccesoDesbloqueado()){solicitarAccesoConfig(sbIt);return;}
+  }
   if(currentRole==='padre'&&view!=='padre')view='padre';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   const sc=document.getElementById(view+'Screen');
@@ -2328,6 +2413,7 @@ function renderAll(){
   renderRecibos();renderRegistroMedico();renderCalendario();renderInventario();renderReportes();renderLogros();renderChecador();renderAsistencia();
   renderDashboardOcupacion();
   renderDashboardStats();
+  renderConfigIfVisible();
 }
 
 function getMenuBadges(){
@@ -2383,15 +2469,41 @@ function updateEstudiantesStats(){
   sub.textContent=`${total} registrados · ${activos} activos`;
 }
 
-function darDeBajaAlumno(idx){
+function esMismoAlumno(a,b){
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  return norm(a)===norm(b);
+}
+function eliminarDatosAlumno(nombre){
+  const est=(DB.estudiantes||[]).find(e=>esMismoAlumno(e.n,nombre));
+  const checId=est?.checId;
+  (DB.pagos||[]).filter(p=>esMismoAlumno(p.a,nombre)&&p.tipo==='Competencia').forEach(p=>{
+    const comp=(DB.competencias||[]).find(c=>c.n===p.clase);
+    if(comp&&comp.ins>0)comp.ins--;
+  });
+  DB.pagos=(DB.pagos||[]).filter(p=>!esMismoAlumno(p.a,nombre));
+  DB.recibos=(DB.recibos||[]).filter(r=>!esMismoAlumno(r.alumno||r.empleado,nombre));
+  DB.checadas=(DB.checadas||[]).filter(c=>{
+    if(esMismoAlumno(c.alumno||c.nombre||c.n,nombre))return false;
+    if(checId&&c.personaId===checId)return false;
+    return true;
+  });
+  DB.clasesPers=(DB.clasesPers||[]).filter(c=>!esMismoAlumno(c.alumno,nombre));
+  DB.registrosMedicos=(DB.registrosMedicos||[]).filter(r=>!esMismoAlumno(r.alumno,nombre));
+  DB.logros=(DB.logros||[]).filter(l=>!esMismoAlumno(l.alumno,nombre));
+  DB.estudiantes=(DB.estudiantes||[]).filter(e=>!esMismoAlumno(e.n,nombre));
+}
+function eliminarEstudianteCompleto(idx){
   const e=DB.estudiantes[idx];
   if(!e)return;
-  if(e.activo===false){toast('Este alumno ya está dado de baja','ℹ️');return;}
-  if(!confirm(`¿Dar de baja a ${e.n}?\n\nDejará de aparecer en la lista de alumnos activos.`))return;
-  e.activo=false;
+  if(!confirm(`¿Eliminar a ${e.n} definitivamente?\n\nSe borrará de estudiantes, pagos, recibos, checador, calendario, médico y logros.`))return;
+  const nombre=e.n;
+  eliminarDatosAlumno(nombre);
   saveDB();
-  renderEst();
-  toast(`${e.n} dado de baja correctamente`,'✓');
+  renderAll();
+  toast(`${nombre} eliminado de todo el sistema`,'✓');
+}
+function darDeBajaAlumno(idx){
+  eliminarEstudianteCompleto(idx);
 }
 
 function onBuscarEstudiantes(){
@@ -2469,7 +2581,7 @@ function renderEst(){
       ${soloAdmin?`<button class="btn bw btn-xs" onclick="editarEstudiante(${i})">Editar</button>`:'<span style="font-size:11px;color:var(--g400)">Sin acceso</span>'}
       <button class="btn bw btn-xs" onclick="contactarTutorWpt('${esc(e.tel)}','${esc(e.n)}')">💬</button>
       ${soloAdmin?`<button class="btn bw btn-xs" onclick="abrirPagoRapido('${esc(e.n)}')">💳</button>`:''}
-      ${soloAdmin?`<button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="darDeBajaAlumno(${i})" title="Dar de baja al alumno">Baja</button>`:''}
+      ${soloAdmin?`<button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarEstudianteCompleto(${i})" title="Eliminar alumno de todo el sistema">Eliminar</button>`:''}
     </div></td></tr>`).join('');
   updateEstudiantesStats();
 }
@@ -2788,6 +2900,27 @@ function cobrarPago(id){
   toast(`Pago de ${p.a} registrado · recibo enviado al tutor`,'✓');
 }
 
+function eliminarCobro(pagoId){
+  ensurePagoIds();
+  const idx=DB.pagos.findIndex(p=>p.id===pagoId);
+  if(idx<0){toast('Cobro no encontrado','⚠️');return;}
+  const p=DB.pagos[idx];
+  if(!confirm(`¿Eliminar este cobro de ${p.a}?\n\n${p.tipo} · ${p.periodo||'—'} · ${p.monto}`))return;
+  if(p.tipo==='Competencia'&&p.clase){
+    const comp=(DB.competencias||[]).find(c=>c.n===p.clase);
+    if(comp&&comp.ins>0)comp.ins--;
+  }
+  const alumno=p.a;
+  DB.pagos.splice(idx,1);
+  if((DB.estudiantes||[]).some(e=>esMismoAlumno(e.n,alumno)))syncEstadoPagoAlumno(alumno);
+  saveDB();
+  renderPagos();
+  renderEst();
+  renderDashboardStats();
+  renderRecibos();
+  toast('Cobro eliminado del registro','✓');
+}
+
 function renderPagos(){
   const tb=document.getElementById('tbPagos');
   if(!tb)return;
@@ -2801,6 +2934,7 @@ function renderPagos(){
   const pend=DB.pagos.filter(p=>p.est==='pendiente').length;
   const sub=document.getElementById('pagosSub');
   if(sub)sub.textContent=`${venc} vencidos · ${pend} pendientes · Orden de cobro aplicado`;
+  const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   tb.innerHTML=lista.map((p,i)=>`<tr data-pago-id="${p.id}" class="${pagosResaltarAlumno&&p.a===pagosResaltarAlumno?'pago-row-hl':''}">
     <td style="font-weight:700;color:var(--g500);font-size:12px">${i+1}</td>
     <td style="font-weight:600;color:var(--g900)">${p.a}</td>
@@ -2811,7 +2945,7 @@ function renderPagos(){
     <td style="font-size:11.5px;color:var(--g600);max-width:120px">${nombreCuenta(p.cuenta)}</td>
     <td style="font-size:12px;color:var(--g500)">${p.fecha}</td>
     <td>${badgeEstadoPago(p.est)}</td>
-    <td><div style="display:flex;gap:5px;flex-wrap:wrap">${p.est!=='pagado'&&p.est!=='cancelado'?`<button class="btn bs btn-xs" onclick="cobrarPago('${p.id}')">Cobrar</button>`:''}<button class="btn bw btn-xs" onclick="abrirEditarPago('${p.id}')">Modificar</button>${p.est==='pagado'?`<button class="btn bw btn-xs" onclick="generarReciboDesdePago('${p.id}')">Recibo</button>`:''}</div></td></tr>`).join('');
+    <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${p.est!=='pagado'&&p.est!=='cancelado'?`<button type="button" class="btn bs btn-xs" onclick="cobrarPago('${esc(p.id)}')">Cobrar</button>`:''}<button type="button" class="btn bw btn-xs" onclick="abrirEditarPago('${esc(p.id)}')">Modificar</button>${p.est==='pagado'?`<button type="button" class="btn bw btn-xs" onclick="generarReciboDesdePago('${esc(p.id)}')">Recibo</button>`:''}<button type="button" class="cal-slot-del pago-del-btn" title="Eliminar cobro" onclick="eliminarCobro('${esc(p.id)}')">✕</button></div></td></tr>`).join('');
   renderCuentasGrid();
   renderTransferenciasList();
 }
@@ -3298,6 +3432,39 @@ function actualizarNominaCampo(empId,campo,valor){
   setStat('nomStatBase','$'+sumBase.toLocaleString('es-MX'));
   setStat('nomStatBonos','$'+sumBonos.toLocaleString('es-MX'));
   setStat('nomStatTotal','$'+sumTotal.toLocaleString('es-MX'));
+}
+
+function filasReportePersonal(){
+  ensureEmpleadosNomina();
+  ensureUsuariosCredenciales();
+  const filasPersonal=(DB.empleados||[]).map(e=>({
+    Registro:'Personal / maestro',
+    Nombre:e.n,
+    Puesto:e.rol||'—',
+    Tipo:tipoNominaEmpleado(e)==='entrenador'?'Maestro':'Operativo',
+    'NIP checador':e.pinChecador||'—',
+    Telefono:e.tel||'—',
+    Correo:e.email||'—',
+    'Horario laboral':horarioLaboralTexto(e),
+    'Sueldo diario':formatMxnInv(e.base),
+    Permisos:'—',
+  }));
+  const filasUsuarios=listaUsuariosCfg().map(email=>{
+    const u=USUARIOS[email];
+    return{
+      Registro:'Usuario del sistema',
+      Nombre:u?.nombre||'—',
+      Puesto:u?.puesto||'—',
+      Tipo:u?.role==='admin'?'Administrador':'Operador',
+      'NIP checador':'—',
+      Telefono:'—',
+      Correo:email,
+      'Horario laboral':'—',
+      'Sueldo diario':'—',
+      Permisos:u?.role==='admin'?'Acceso total':String((u?.permisos||[]).length)+' módulos',
+    };
+  });
+  return filasPersonal.concat(filasUsuarios);
 }
 
 function filasReporteNomina(){
@@ -5220,6 +5387,7 @@ const REP_TABS=[
   {id:'pagos',lbl:'💳 Pagos'},
   {id:'asistencia',lbl:'✅ Asistencia'},
   {id:'nomina',lbl:'💼 Nómina'},
+  {id:'personal',lbl:'👥 Personal y maestros'},
   {id:'inventario',lbl:'📦 Inventario mensual'},
   {id:'competencias',lbl:'🏆 Competencias'},
   {id:'medico',lbl:'🩺 Médico'},
@@ -5245,6 +5413,8 @@ function pagoEsMesActual(p){
 function calcularMetricasReportes(){
   ensureInventario();
   ensureRecibos();
+  ensureEmpleadosNomina();
+  ensureUsuariosCredenciales();
   const inv=calcularTotalesInventario();
   const activos=DB.estudiantes.filter(e=>e.activo!==false);
   const totalActivos=activos.length;
@@ -5275,6 +5445,10 @@ function calcularMetricasReportes(){
   const insComp=comps.reduce((s,c)=>s+(c.ins||0),0);
   const regsMed=(DB.registrosMedicos||[]).length;
   const medAlerta=(DB.registrosMedicos||[]).filter(r=>r.gravedad==='alta'||r.gravedad==='media').length;
+  const nPersonal=(DB.empleados||[]).length;
+  const nMaestros=(DB.empleados||[]).filter(e=>tipoNominaEmpleado(e)==='entrenador').length;
+  const nUsuariosSistema=listaUsuariosCfg().length;
+  const nAdmins=listaUsuariosCfg().filter(e=>USUARIOS[e]?.role==='admin').length;
   const faltasLista=activos.filter(e=>e.est==='vencido'||e.est==='pendiente').slice(0,6).map((e,i)=>({
     n:e.n,det:e.est==='vencido'?'Pago vencido — posible baja':'Pago pendiente',nivel:i<2?'alta':'media'
   }));
@@ -5283,6 +5457,7 @@ function calcularMetricasReportes(){
     ingresosMes,nominaTotal,gastosOp,utilidad,retencion,porCobrar,clasesRank,
     entradasHoy,checadasHoy:checadasHoy.length,recibosMes:recibosMes.length,
     comps,insComp,regsMed,medAlerta,faltasLista,
+    nPersonal,nMaestros,nUsuariosSistema,nAdmins,
   };
 }
 
@@ -5354,6 +5529,9 @@ function filasReporteExcel(tab,m){
         {Seccion:'Indicador',Detalle:'Pagos al dia',Valor:m.retencion+'%'},
         {Seccion:'Indicador',Detalle:'Valor inventario',Valor:formatMxnInv(m.inv.valorInventario)},
         {Seccion:'Indicador',Detalle:'Entradas hoy',Valor:m.entradasHoy},
+        {Seccion:'Personal',Detalle:'Personal registrado',Valor:m.nPersonal},
+        {Seccion:'Personal',Detalle:'Maestros',Valor:m.nMaestros},
+        {Seccion:'Personal',Detalle:'Usuarios del panel',Valor:m.nUsuariosSistema},
         {Seccion:'Financiero',Detalle:'Nómina',Valor:formatMxnInv(m.nominaTotal)},
         {Seccion:'Financiero',Detalle:'Operación sistema',Valor:formatMxnInv(m.gastosOp)},
         {Seccion:'Financiero',Detalle:'Por cobrar',Valor:formatMxnInv(m.porCobrar)},
@@ -5389,6 +5567,8 @@ function filasReporteExcel(tab,m){
       }));
     case 'nomina':
       return filasReporteNomina();
+    case 'personal':
+      return filasReportePersonal();
     case 'inventario':{
       const snap=snapshotInventarioMensual();
       const resumen=[
@@ -5464,6 +5644,7 @@ function renderRepPanelResumen(m){
     <div class="rep-kpi"><div class="rep-kpi-v">${m.retencion}%</div><div class="rep-kpi-l">Pagos al día</div></div>
     <div class="rep-kpi"><div class="rep-kpi-v">${formatMxnInv(m.inv.valorInventario)}</div><div class="rep-kpi-l">Valor inventario</div></div>
     <div class="rep-kpi"><div class="rep-kpi-v">${m.entradasHoy}</div><div class="rep-kpi-l">Entradas hoy</div></div>
+    <div class="rep-kpi"><div class="rep-kpi-v">${m.nPersonal}</div><div class="rep-kpi-l">Personal (${m.nMaestros} maestros)</div></div>
   </div>
   <div class="g2">
     <div class="card"><div class="card-h"><div class="card-t">💰 Financiero rápido</div></div><div class="card-b">
@@ -5568,6 +5749,52 @@ function renderRepPanelAsistencia(m){
       ${movs.length?movs.map(c=>`<tr><td>${c.hora||'—'}</td><td>${c.nombre||'—'}</td><td>${c.accion}</td><td>${c.nip||'—'}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--g400)">Sin checadas hoy</td></tr>'}
     </tbody></table>
   </div></div>`;
+}
+
+function renderRepPanelPersonal(m){
+  ensureEmpleadosNomina();
+  const empleados=DB.empleados||[];
+  const usuarios=listaUsuariosCfg();
+  return `
+  <div class="rep-kpi-row">
+    <div class="rep-kpi"><div class="rep-kpi-v">${m.nPersonal}</div><div class="rep-kpi-l">Personal registrado</div></div>
+    <div class="rep-kpi"><div class="rep-kpi-v">${m.nMaestros}</div><div class="rep-kpi-l">Maestros</div></div>
+    <div class="rep-kpi"><div class="rep-kpi-v">${m.nUsuariosSistema}</div><div class="rep-kpi-l">Usuarios del panel</div></div>
+    <div class="rep-kpi"><div class="rep-kpi-v">${m.nAdmins}</div><div class="rep-kpi-l">Administradores</div></div>
+  </div>
+  <div class="card"><div class="card-h"><div class="card-t">Personal y maestros — checador y nómina</div><span class="badge bb">${empleados.length} registro${empleados.length===1?'':'s'}</span></div><div class="card-b" style="padding:0">
+    <table class="rep-table-mini"><thead><tr><th>Nombre</th><th>Puesto</th><th>Tipo</th><th>NIP</th><th>Contacto</th><th>Horario</th><th>Sueldo/día</th></tr></thead><tbody>
+      ${empleados.length?empleados.map(e=>{
+        const esMaestro=tipoNominaEmpleado(e)==='entrenador';
+        return `<tr>
+          <td style="font-weight:600">${e.n}</td>
+          <td>${e.rol||'—'}</td>
+          <td><span class="badge ${esMaestro?'bg':'bb'}">${esMaestro?'Maestro':'Operativo'}</span></td>
+          <td style="font-family:monospace">${e.pinChecador||'—'}</td>
+          <td style="font-size:12px">${e.tel||'—'}${e.email?'<br>'+e.email:''}</td>
+          <td style="font-size:11.5px;color:var(--g600)">${horarioLaboralTexto(e)}</td>
+          <td style="font-weight:700">${formatMxnInv(e.base)}</td>
+        </tr>`;
+      }).join(''):'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--g400)">Sin personal registrado</td></tr>'}
+    </tbody></table>
+  </div></div>
+  <div class="card" style="margin-top:16px"><div class="card-h"><div class="card-t">Usuarios del sistema (acceso al panel)</div><span class="badge bb">${usuarios.length} usuario${usuarios.length===1?'':'s'}</span></div><div class="card-b" style="padding:0">
+    <table class="rep-table-mini"><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Puesto</th><th>Permisos</th></tr></thead><tbody>
+      ${usuarios.length?usuarios.map(email=>{
+        const u=USUARIOS[email];
+        const rol=u?.role==='admin'?'<span class="badge" style="background:var(--p100);color:var(--p700)">Admin</span>':'<span class="badge bb">Operador</span>';
+        const nPerm=u?.role==='admin'?'Acceso total':String((u?.permisos||[]).length)+' módulos';
+        return `<tr>
+          <td style="font-weight:600">${u?.nombre||'—'}</td>
+          <td style="font-size:12px">${email}</td>
+          <td>${rol}</td>
+          <td>${u?.puesto||'—'}</td>
+          <td style="font-size:12px;color:var(--g500)">${nPerm}</td>
+        </tr>`;
+      }).join(''):'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g400)">Sin usuarios del sistema</td></tr>'}
+    </tbody></table>
+  </div></div>
+  <div style="margin-top:12px;font-size:12px;color:var(--g500)">Datos de alta en Registro → Personal y Configuración. Exporta con el botón Excel de arriba.</div>`;
 }
 
 function renderRepPanelNomina(m){
@@ -5687,6 +5914,7 @@ function renderReportes(){
     pagos:renderRepPanelPagos(m),
     asistencia:renderRepPanelAsistencia(m),
     nomina:renderRepPanelNomina(m),
+    personal:renderRepPanelPersonal(m),
     inventario:renderRepPanelInventario(m),
     competencias:renderRepPanelCompetencias(m),
     medico:renderRepPanelMedico(m),
@@ -7006,13 +7234,16 @@ function applyDbSnapshot(saved){
 }
 
 function applyUsersSnapshot(saved){
-  if(!saved)return;
+  if(!saved||typeof saved!=='object')return;
   Object.keys(saved).forEach(k=>{
     const key=String(k).trim().toLowerCase();
-    const incoming={...saved[k]};
+    if(!esEmailUsuarioKey(key))return;
+    const raw=saved[k];
+    if(!raw||typeof raw!=='object')return;
+    const incoming={...raw};
     const passLocal=USUARIOS[key]?.pass;
     delete incoming.pass;
-    USUARIOS[key]={...USUARIOS[key],...incoming};
+    USUARIOS[key]={...(USUARIOS[key]||{}),...incoming};
     if(USUARIOS_DEFAULT[key])USUARIOS[key].pass=USUARIOS_DEFAULT[key].pass;
     else if(passLocal&&String(passLocal).length>=3)USUARIOS[key].pass=passLocal;
   });

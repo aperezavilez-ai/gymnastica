@@ -163,7 +163,8 @@
   };
 
   g.openConfig = function () {
-    if (typeof g.goTo === 'function') g.goTo('config');
+    if (typeof g.solicitarAccesoConfig === 'function') g.solicitarAccesoConfig(null);
+    else if (typeof g.goTo === 'function') g.goTo('config');
     else g.openMdl('config');
   };
 
