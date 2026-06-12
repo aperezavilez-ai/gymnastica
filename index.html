@@ -67,6 +67,10 @@ html[data-pwa-mode="app"] #installScreen{display:none!important}
 .install-hint strong{display:block;margin-bottom:6px;font-size:13px}
 .install-status{margin-top:14px;font-size:12.5px;color:rgba(255,255,255,.85);line-height:1.5}
 .install-status:empty{display:none}
+.pago-row-hl{background:var(--b50)!important;outline:2px solid var(--b300);animation:pagoFlash 1.2s ease 2}
+@keyframes pagoFlash{0%,100%{outline-color:var(--b300)}50%{outline-color:var(--b500)}}
+.est-pago-cell{cursor:pointer;user-select:none}
+.est-pago-cell:hover{opacity:.85}
 .pwa-progress-wrap{margin-top:8px;text-align:left}
 .pwa-progress-label{font-size:12px;font-weight:700;color:rgba(255,255,255,.9);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
 .pwa-progress-track{height:10px;background:rgba(0,0,0,.25);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.2)}
@@ -1681,7 +1685,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-pagos';
+const APP_VERSION='2026.06.16-est-pago';
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
@@ -2298,7 +2302,7 @@ function renderEst(){
     <td style="color:var(--g700)">${e.clase}</td>
     <td style="color:var(--g500);font-size:12px">${e.horario}</td>
     <td style="font-weight:700">${e.monto}</td>
-    <td>${e.est==='pagado'?'<span class="badge bg">✓ Al día</span>':e.est==='vencido'?'<span class="badge br">⚠ Vencido</span>':'<span class="badge by">⏰ Pendiente</span>'}</td>
+    <td class="est-pago-cell" ondblclick="irAPagoAlumnoDesdeEst('${esc(e.n)}')" title="Doble clic para ver o modificar en Pagos">${e.est==='pagado'?'<span class="badge bg">✓ Al día</span>':e.est==='vencido'?'<span class="badge br">⚠ Vencido</span>':'<span class="badge by">⏰ Pendiente</span>'}</td>
     <td><div class="td-n" style="font-size:12.5px">${e.tutor}</div><div class="td-s">${e.tel}</div></td>
     <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
       ${soloAdmin?`<button class="btn bw btn-xs" onclick="editarEstudiante(${i})">Editar</button>`:'<span style="font-size:11px;color:var(--g400)">Sin acceso</span>'}
@@ -2311,6 +2315,7 @@ function renderEst(){
 
 const PAGO_EST_PRIO={vencido:0,pendiente:1,pagado:2,cancelado:3};
 let editPagoId=null;
+let pagosResaltarAlumno='';
 
 function ensureCuentas(){
   if(!DB.cuentas?.length){
@@ -2499,6 +2504,38 @@ function toggleEditPagoFecha(){
   }
 }
 
+function pagoPrincipalAlumno(nombre){
+  ensurePagoIds();
+  const lista=ordenarPagos((DB.pagos||[]).filter(p=>p.a===nombre&&p.est!=='cancelado'));
+  if(!lista.length)return null;
+  const periodo=getPeriodoActual();
+  return lista.find(p=>p.periodo===periodo&&(p.est==='pendiente'||p.est==='vencido'))
+    ||lista.find(p=>p.periodo===periodo)
+    ||lista.find(p=>p.est==='pendiente'||p.est==='vencido')
+    ||lista[0];
+}
+function irAPagoAlumnoDesdeEst(nombre){
+  if(!nombre)return;
+  const p=pagoPrincipalAlumno(nombre);
+  pagosResaltarAlumno=nombre;
+  goTo('pagos');
+  renderPagos();
+  setTimeout(()=>{
+    const row=document.querySelector(`tr[data-pago-id="${p?.id||''}"]`);
+    if(row)row.scrollIntoView({behavior:'smooth',block:'center'});
+    if(p&&(currentRole==='admin'||currentRole==='operador'))abrirEditarPago(p.id);
+    else if(!p){
+      toast(`Sin cobros para ${nombre}. Registra el pago aquí.`,'ℹ️');
+      if(currentRole==='admin'||currentRole==='operador'){
+        openMdl('newPago');
+        const sel=document.getElementById('pagoAlumnoSelect');
+        if(sel)sel.value=nombre;
+      }
+    }
+    setTimeout(()=>{pagosResaltarAlumno='';},4000);
+  },150);
+}
+function abrirPagoRapido(nombre){irAPagoAlumnoDesdeEst(nombre);}
 function abrirEditarPago(id){
   ensureCuentas();
   ensurePagoIds();
@@ -2603,7 +2640,7 @@ function renderPagos(){
   const pend=DB.pagos.filter(p=>p.est==='pendiente').length;
   const sub=document.getElementById('pagosSub');
   if(sub)sub.textContent=`${venc} vencidos · ${pend} pendientes · Orden de cobro aplicado`;
-  tb.innerHTML=lista.map((p,i)=>`<tr>
+  tb.innerHTML=lista.map((p,i)=>`<tr data-pago-id="${p.id}" class="${pagosResaltarAlumno&&p.a===pagosResaltarAlumno?'pago-row-hl':''}">
     <td style="font-weight:700;color:var(--g500);font-size:12px">${i+1}</td>
     <td style="font-weight:600;color:var(--g900)">${p.a}</td>
     <td><span class="badge bb">${p.tipo}</span></td>
