@@ -1681,7 +1681,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-pwa5';
+const APP_VERSION='2026.06.16-pwa6';
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
@@ -7220,12 +7220,20 @@ function animarProgresoDescarga(desde,hasta,duracion){
     step();
   });
 }
+async function fetchPwaRecurso(url,ms=2500){
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),ms);
+  try{await fetch(url,{signal:ctrl.signal,cache:'reload'});}catch(e){}
+  clearTimeout(t);
+}
 async function descargarRecursosPwa(){
-  const urls=['/manifest.webmanifest','/sw.js','/assets/icon-192.png','/assets/icon-512.png','/assets/icono-gym.png'];
-  for(let i=0;i<urls.length;i++){
-    try{await fetch(urls[i]+'?pwa='+Date.now(),{cache:'no-store'});}catch(e){}
-    setProgresoDescarga(10+Math.round(((i+1)/urls.length)*50));
-  }
+  const urls=['/manifest.webmanifest','/sw.js','/assets/icon-192.png','/assets/icon-512.png'];
+  let listo=0;
+  await Promise.all(urls.map(async u=>{
+    await fetchPwaRecurso(u+'?t='+Date.now());
+    listo++;
+    setProgresoDescarga(12+Math.round((listo/urls.length)*58));
+  }));
 }
 function resetInstalacionPwa(msg){
   pwaInstalando=false;
@@ -7235,9 +7243,10 @@ function resetInstalacionPwa(msg){
   actualizarBotonPwa();
 }
 async function finalizarDescargaPwa(){
-  if(pwaProgressVal<100)await animarProgresoDescarga(pwaProgressVal,100,600);
+  if(pwaProgressVal<100)await animarProgresoDescarga(pwaProgressVal,100,350);
+  setProgresoDescarga(100);
   setPwaInstallStatus('¡Descarga completa!');
-  await esperarPwa(500);
+  await esperarPwa(200);
   pwaInstalando=false;
   abrirPanelTrasDescarga();
 }
@@ -7274,36 +7283,31 @@ async function instalarPwa(){
   ocultarHintsInstalacion();
   mostrarBarraProgreso(true);
   setProgresoDescarga(1);
-  setPwaInstallStatus('Preparando descarga…');
-  await animarProgresoDescarga(1,8,300);
-  setPwaInstallStatus('Descargando archivos de la app…');
-  await descargarRecursosPwa();
+  setPwaInstallStatus('Descargando app…');
+  const anim=animarProgresoDescarga(1,55,700);
+  const down=descargarRecursosPwa();
+  await Promise.all([anim,down]);
+  setProgresoDescarga(Math.max(pwaProgressVal,70));
   if(pwaDeferredPrompt){
-    setPwaInstallStatus('Confirma la instalación en tu dispositivo…');
-    await animarProgresoDescarga(pwaProgressVal,75,400);
+    setPwaInstallStatus('Confirma la instalación…');
     try{
-      await pwaDeferredPrompt.prompt();
-      const {outcome}=await pwaDeferredPrompt.userChoice;
+      pwaDeferredPrompt.prompt();
+      const eleccion=pwaDeferredPrompt.userChoice;
+      await animarProgresoDescarga(pwaProgressVal,88,500);
+      const {outcome}=await eleccion;
       pwaDeferredPrompt=null;
       if(outcome==='accepted'){
-        setPwaInstallStatus('Instalando Gymnastica…');
-        await animarProgresoDescarga(pwaProgressVal,95,800);
+        setPwaInstallStatus('Instalando…');
         await finalizarDescargaPwa();
         return;
       }
       resetInstalacionPwa('Instalación cancelada. Intenta de nuevo.');
       return;
-    }catch(e){
-      mostrarHintInstalacion();
-      setPwaInstallStatus('Usa el menú del navegador para instalar.');
-      pwaInstalando=false;
-      return;
-    }
+    }catch(e){/* continúa y termina descarga */}
   }
-  mostrarHintInstalacion();
-  setPwaInstallStatus(esIosSafari()?'Sigue los pasos y espera a que termine…':'Instala desde el menú ⋮ del navegador…');
-  await animarProgresoDescarga(pwaProgressVal,95,2500);
-  setPwaInstallStatus('Esperando confirmación de instalación…');
+  setPwaInstallStatus('Finalizando…');
+  await animarProgresoDescarga(pwaProgressVal,100,500);
+  await finalizarDescargaPwa();
 }
 function abrirPanelTrasDescarga(){
   try{sessionStorage.setItem(PWA_LISTA_KEY,'1');}catch(e){}
@@ -7316,7 +7320,7 @@ function pwaAccesoPermitido(){
 }
 async function initPwaGate(){
   setupPwaInstallListeners();
-  await registrarServiceWorker();
+  registrarServiceWorker();
   actualizarBotonPwa();
   try{
     localStorage.removeItem('gymnastica_skip_install');
