@@ -1253,7 +1253,7 @@ Gymnastica</textarea></div>
         <div class="emp-sueldo-row"><span>Sueldo diario</span><input type="number" id="empBase" min="0" step="1" value="350" oninput="actualizarEmpSueldoTotal()"></div>
         <div class="emp-sueldo-row"><span>Bono asistencia / semana</span><input type="number" id="empAsis" min="0" step="1" value="150" oninput="actualizarEmpSueldoTotal()"></div>
         <div class="emp-sueldo-row"><span>Bono productividad / semana</span><input type="number" id="empProd" min="0" step="1" value="125" oninput="actualizarEmpSueldoTotal()"></div>
-        <div class="emp-sueldo-total"><span>Integrado semana (estimado)</span><strong id="empTotal">$625</strong></div>
+        <div class="emp-sueldo-total"><span id="empTotalLbl">Integrado diario (estimado)</span><strong id="empTotal">$2,375</strong></div>
       </div>
     </div>
     <div class="g2">
@@ -1732,7 +1732,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.17-eliminar-alumno';
+const APP_VERSION='2026.06.17-sueldo-diario';
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
 let configScrollTarget=null;
@@ -3089,13 +3089,14 @@ function renderEmpDiasLaboralesModal(){
   const ent=cfg.horaPuntual||'09:00';
   el.innerHTML=NOM_DIAS_SEM.map(ds=>`
     <div class="nom-dia on">
-      <label class="nom-dia-lbl"><input type="checkbox" class="emp-dia-chk" data-dia="${ds.d}" checked> ${ds.l}</label>
+      <label class="nom-dia-lbl"><input type="checkbox" class="emp-dia-chk" data-dia="${ds.d}" checked onchange="actualizarEmpSueldoTotal()"> ${ds.l}</label>
       <div class="nom-dia-times">
         <input type="time" class="emp-dia-ent" data-dia="${ds.d}" value="${ent}">
         <input type="time" class="emp-dia-sal" data-dia="${ds.d}" value="18:00">
       </div>
     </div>
   `).join('');
+  actualizarEmpSueldoTotal();
 }
 function alumnosAsignadosEmpleado(emp){
   const match=matchEntrenadorNom(emp);
@@ -3164,13 +3165,21 @@ function renderNominaEvalConfig(){
   <p style="margin-top:12px;font-size:11.5px;color:var(--g500);line-height:1.5"><strong>Sueldo diario</strong> × días asistidos en la <strong>semana actual (lun–sáb)</strong>. Bonos y metas también son semanales. Horario laboral por empleado abajo.</p>`;
 }
 
+function contarDiasLaboralesModal(){
+  const n=document.querySelectorAll('#empDiasLaborales .emp-dia-chk:checked').length;
+  return n>0?n:NOM_DIAS_SEM.length;
+}
 function actualizarEmpSueldoTotal(){
   const diario=parseInt(document.getElementById('empBase')?.value,10)||0;
   const asis=parseInt(document.getElementById('empAsis')?.value,10)||0;
   const prod=parseInt(document.getElementById('empProd')?.value,10)||0;
-  const diasSem=6;
+  const dias=contarDiasLaboralesModal();
+  const baseDiario=diario*dias;
+  const total=baseDiario+asis+prod;
+  const lbl=document.getElementById('empTotalLbl');
+  if(lbl)lbl.textContent=`Integrado diario · ${dias} día${dias===1?'':'s'} laboral${dias===1?'':'es'} (estimado)`;
   const el=document.getElementById('empTotal');
-  if(el)el.textContent='$'+(diario*diasSem+asis+prod).toLocaleString('es-MX');
+  if(el)el.textContent='$'+total.toLocaleString('es-MX');
 }
 
 function prepararModalEmpleado(){
@@ -3182,7 +3191,6 @@ function prepararModalEmpleado(){
   set('empEmail','');
   const chk=document.getElementById('empEnviarRecibo');
   if(chk)chk.checked=true;
-  actualizarEmpSueldoTotal();
   renderEmpDiasLaboralesModal();
 }
 
