@@ -163,30 +163,24 @@
   };
 
   g.openConfig = function () {
-    g.ensureConfig();
-    const c = g.DB.config;
-    const set = (id, v) => {
-      const el = document.getElementById(id);
-      if (el) el.value = v ?? '';
-    };
-    set('cfgNombre', c.nombreGym);
-    set('cfgTel', c.telefono);
-    set('cfgEmail', c.email);
-    set('cfgDir', c.direccion);
-    g.openMdl('config');
+    if (typeof g.goTo === 'function') g.goTo('config');
+    else g.openMdl('config');
   };
 
   g.guardarConfig = function () {
-    g.ensureConfig();
-    g.DB.config = {
-      nombreGym: document.getElementById('cfgNombre')?.value?.trim() || 'GYMNASTICA',
-      telefono: document.getElementById('cfgTel')?.value?.trim() || '',
-      email: document.getElementById('cfgEmail')?.value?.trim() || '',
-      direccion: document.getElementById('cfgDir')?.value?.trim() || '',
-    };
-    g.saveDB();
-    g.closeMdl('config');
-    g.toast('Configuración guardada', '✓');
+    if (typeof g.guardarConfigPagina === 'function') g.guardarConfigPagina();
+    else {
+      g.ensureConfig();
+      g.DB.config = {
+        nombreGym: document.getElementById('cfgNombre')?.value?.trim() || 'GYMNASTICA',
+        telefono: document.getElementById('cfgTel')?.value?.trim() || '',
+        email: document.getElementById('cfgEmail')?.value?.trim() || '',
+        direccion: document.getElementById('cfgDir')?.value?.trim() || '',
+      };
+      g.saveDB();
+      g.closeMdl('config');
+      g.toast('Configuración guardada', '✓');
+    }
   };
 
   g.ensureConfig = function () {

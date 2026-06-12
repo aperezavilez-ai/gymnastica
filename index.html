@@ -855,6 +855,35 @@ Gymnastica</textarea></div>
       </div>
     </div>
 
+    <!-- ─ CONFIGURACIÓN (solo administradores) ─ -->
+    <div class="screen" id="configScreen">
+      <div class="ph">
+        <div><div class="ph-title">Configuración</div><div class="ph-sub">Datos del gimnasio y usuarios del sistema</div></div>
+        <div class="ph-acts"><button class="btn bp" onclick="guardarConfigPagina()">Guardar cambios</button></div>
+      </div>
+      <div class="g2" style="align-items:start;margin-bottom:20px">
+        <div class="card">
+          <div class="card-h"><div class="card-t">Datos del gimnasio</div></div>
+          <div class="card-b">
+            <div class="fg"><label class="flb">Nombre del gimnasio</label><input class="finp" id="cfgNombre"></div>
+            <div class="g2"><div class="fg"><label class="flb">Teléfono</label><input class="finp" id="cfgTel"></div><div class="fg"><label class="flb">Correo</label><input class="finp" id="cfgEmail" type="email"></div></div>
+            <div class="fg" style="margin-bottom:0"><label class="flb">Dirección</label><input class="finp" id="cfgDir"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Resumen</div></div>
+          <div class="card-b" id="cfgResumen" style="font-size:13px;color:var(--g600);line-height:1.6"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <div class="card-t">Usuarios del sistema</div>
+          <button class="btn bp btn-sm" type="button" onclick="abrirAltaPersonal()">+ Añadir usuario</button>
+        </div>
+        <div class="tw"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Puesto</th><th>Permisos</th><th>Acciones</th></tr></thead><tbody id="tbUsuariosCfg"></tbody></table></div>
+      </div>
+    </div>
+
     <!-- ─ PORTAL PADRE (solo vista padre/tutor) ─ -->
     <div class="screen" id="padreScreen">
       <div class="padre-portal">
@@ -1679,7 +1708,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.16-real';
+const APP_VERSION='2026.06.16-config';
 const PWA_LISTA_KEY='gymnastica_pwa_lista';
 let pwaInstalando=false;
 let pwaProgressVal=0;
@@ -1786,8 +1815,11 @@ function togglePersonalPermisosUI(){
   }
 }
 
+function esAdminSistema(){
+  return currentRole==='admin';
+}
 function abrirAltaPersonal(){
-  if(currentRole!=='admin'){toast('Solo el administrador puede dar de alta personal','⚠️');return;}
+  if(!esAdminSistema()){toast('Solo administradores pueden gestionar usuarios','⚠️');return;}
   ['personalNombre','personalEmail','personalPass','personalPuesto'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.value='';
@@ -1800,7 +1832,7 @@ function abrirAltaPersonal(){
 }
 
 function guardarAltaPersonal(){
-  if(currentRole!=='admin'){toast('Sin permisos para esta acción','⚠️');return;}
+  if(!esAdminSistema()){toast('Sin permisos para esta acción','⚠️');return;}
   const nombre=document.getElementById('personalNombre')?.value?.trim();
   const emailRaw=document.getElementById('personalEmail')?.value?.trim().toLowerCase();
   const pass=document.getElementById('personalPass')?.value?.trim();
@@ -1828,7 +1860,75 @@ function guardarAltaPersonal(){
   };
   saveUsers();
   closeMdl('altaPersonal');
+  renderConfig();
   toast(`${nombre} registrado · ${permisos.length} permisos asignados`,'✓');
+}
+function rolUsuarioLabel(u){
+  if(u.role==='admin')return 'Administrador';
+  if(u.role==='padre')return 'Padre / Tutor';
+  return u.puesto||'Operador';
+}
+function renderConfig(){
+  if(!esAdminSistema())return;
+  ensureConfig();
+  const c=DB.config;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v??'';};
+  set('cfgNombre',c.nombreGym);
+  set('cfgTel',c.telefono);
+  set('cfgEmail',c.email);
+  set('cfgDir',c.direccion);
+  const res=document.getElementById('cfgResumen');
+  const lista=Object.keys(USUARIOS);
+  const admins=lista.filter(e=>USUARIOS[e]?.role==='admin').length;
+  const ops=lista.filter(e=>USUARIOS[e]?.role==='operador').length;
+  if(res)res.innerHTML=`<div><strong>${lista.length}</strong> usuarios registrados</div><div>${admins} administrador${admins===1?'':'es'} · ${ops} operador${ops===1?'':'es'}</div><div style="margin-top:8px;font-size:12px;color:var(--g500)">Sesión: ${currentUser?.nombre||'—'}</div>`;
+  const tb=document.getElementById('tbUsuariosCfg');
+  if(!tb)return;
+  const yo=currentUser?.loginEmail||'';
+  const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  tb.innerHTML=lista.map(email=>{
+    const u=USUARIOS[email];
+    const esYo=email===yo;
+    const rol=u.role==='admin'?'<span class="badge" style="background:var(--p100);color:var(--p700)">Admin</span>':'<span class="badge bb">Operador</span>';
+    const nPerm=u.role==='admin'?'Acceso total':String((u.permisos||[]).length)+' módulos';
+    return `<tr>
+      <td><div style="font-weight:700;color:var(--g900)">${u.nombre||'—'}${esYo?' <span style="font-size:10px;color:var(--b600)">(tú)</span>':''}</div></td>
+      <td style="font-size:12.5px;color:var(--g600)">${email}</td>
+      <td>${rol}</td>
+      <td style="color:var(--g600)">${u.puesto||'—'}</td>
+      <td style="font-size:12px;color:var(--g500)">${nPerm}</td>
+      <td>${esYo?'<span style="font-size:11px;color:var(--g400)">Cuenta activa</span>':`<button class="btn btn-xs" style="background:var(--r50);color:var(--r600);border:1px solid var(--r100)" onclick="eliminarUsuario('${esc(email)}')">Eliminar</button>`}</td>
+    </tr>`;
+  }).join('');
+}
+function guardarConfigPagina(){
+  if(!esAdminSistema()){toast('Sin permisos','⚠️');return;}
+  ensureConfig();
+  DB.config={
+    nombreGym:document.getElementById('cfgNombre')?.value?.trim()||'GYMNASTICA',
+    telefono:document.getElementById('cfgTel')?.value?.trim()||'',
+    email:document.getElementById('cfgEmail')?.value?.trim()||'',
+    direccion:document.getElementById('cfgDir')?.value?.trim()||'',
+  };
+  saveDB();
+  renderConfig();
+  toast('Configuración guardada','✓');
+}
+function eliminarUsuario(email){
+  if(!esAdminSistema()){toast('Sin permisos','⚠️');return;}
+  const key=String(email||'').toLowerCase();
+  if(!USUARIOS[key]){toast('Usuario no encontrado','⚠️');return;}
+  if(key===(currentUser?.loginEmail||'').toLowerCase()){toast('No puedes eliminar tu propia cuenta','⚠️');return;}
+  const u=USUARIOS[key];
+  if(u.role==='admin'){
+    const admins=Object.keys(USUARIOS).filter(e=>USUARIOS[e]?.role==='admin');
+    if(admins.length<=1){toast('Debe quedar al menos un administrador','⚠️');return;}
+  }
+  if(!confirm(`¿Eliminar acceso de ${u.nombre} (${key})?`))return;
+  delete USUARIOS[key];
+  saveUsers();
+  renderConfig();
+  toast('Usuario eliminado del sistema','✓');
 }
 
 // ═══════ LOGIN ═══════
@@ -2049,8 +2149,7 @@ function buildUI(){
       ${menu.map(renderSbNavItem).join('')}
     </div>
     <div class="sb-bot">
-      ${currentRole==='admin'?'<div class="sb-it sb-staff" onclick="abrirAltaPersonal()">👤 Alta de personal</div>':''}
-      <div class="sb-it" onclick="openConfig()">⚙️ Configuración</div>
+      ${currentRole==='admin'?'<div class="sb-it" onclick="goTo(\'config\',null,this)">⚙️ Configuración</div>':''}
       <div class="sb-it" onclick="showLogin()">🚪 Cerrar sesión</div>
     </div>`;
   }
@@ -2083,6 +2182,7 @@ function renderSbNavItem(m){
 // ═══════ NAV ═══════
 function goTo(view,btn,sbIt){
   if(currentUser&&nubeDisponible())pullFromCloud(true,false);
+  if(view==='config'&&!esAdminSistema()){toast('Solo administradores acceden a Configuración','⚠️');return;}
   if(currentRole==='padre'&&view!=='padre')view='padre';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   const sc=document.getElementById(view+'Screen');
@@ -2114,6 +2214,7 @@ function goTo(view,btn,sbIt){
   if(view==='inventario')renderInventario();
   if(view==='registroMedico')renderRegistroMedico();
   if(view==='promociones')renderPromos();
+  if(view==='config')renderConfig();
 }
 
 // ═══════ DASHBOARD ═══════
