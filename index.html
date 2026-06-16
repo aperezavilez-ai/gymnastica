@@ -1735,7 +1735,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.18-sync-fix';
+const APP_VERSION='2026.06.18-manual-cal';
 let lastDeleteAt=0;
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
@@ -2584,9 +2584,8 @@ function guardarEditEst(){
   e.tutor=document.getElementById('editEstTutor')?.value||e.tutor;
   e.tel=document.getElementById('editEstTel')?.value||e.tel;
   e.email=document.getElementById('editEstEmail')?.value?.trim()||'';
-  const calN=sincronizarHorarioAlumnoCalendario(e);
   saveDB();closeMdl('editEst');renderAll();
-  toast(calN?`Alumno actualizado · ${calN} clase${calN===1?'':'s'} en calendario`:'Datos del alumno actualizados','✓');
+  toast('Datos del alumno actualizados','✓');
 }
 
 function renderEst(){
@@ -4114,51 +4113,8 @@ function entrenadorDefaultCalendario(){
   const emp=(DB.empleados||[]).find(e=>typeof tipoNominaEmpleado==='function'&&tipoNominaEmpleado(e)==='entrenador');
   return emp?.n||(DB.empleados?.[0]?.n)||'Entrenador';
 }
-function sincronizarHorarioAlumnoCalendario(est,opts={}){
-  if(!est?.n||!est.horario||est.horario==='—')return 0;
-  ensureCalendarioData();
-  const slots=parsearHorarioAlumno(est.horario);
-  if(!slots.length)return 0;
-  const tipo=opts.tipoPago||est.tipoPago||'Mensualidad';
-  const pers=esClasePersonalizadaTipo(tipo);
-  let n=0;
-  const ent=entrenadorDefaultCalendario();
-  if(pers){
-    DB.clasesPers=(DB.clasesPers||[]).filter(c=>!(c.autoRegistro&&c.alumno===est.n));
-    slots.forEach(slot=>{
-      const hora=formatearHora12Desde24(slot.hora);
-      fechasCalendarioSlot(slot.dia,8).forEach(fecha=>{
-        if(DB.clasesPers.some(c=>c.alumno===est.n&&c.fecha===fecha&&c.hora===hora))return;
-        DB.clasesPers.push({
-          id:'cp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
-          fecha,alumno:est.n,hora,entrenador:ent,duracion:'60 min',
-          c:est.c||'#a855f7',autoRegistro:true
-        });
-        n++;
-      });
-    });
-  }else{
-    const clase=est.clase||'Gimnasia Artística';
-    slots.forEach(slot=>{
-      const hora=formatearHora12Desde24(slot.hora);
-      fechasCalendarioSlot(slot.dia,8).forEach(fecha=>{
-        if(DB.calendarioGrupal.some(c=>c.fecha===fecha&&c.hora===hora&&c.nombre===clase))return;
-        const live=alumnosEnClaseCal(clase).length;
-        DB.calendarioGrupal.push({
-          id:'cg_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
-          fecha,hora,nombre:clase,alumnos:live,max:20,
-          c:colorParaClaseGrupal(clase),autoRegistro:true
-        });
-        n++;
-      });
-    });
-    DB.calendarioGrupal.forEach(c=>{
-      const match=String(c.nombre||'').toLowerCase()===String(clase).toLowerCase()
-        ||String(clase).toLowerCase().includes(String(c.nombre||'').toLowerCase());
-      if(match)c.alumnos=alumnosEnClaseCal(c.nombre).length;
-    });
-  }
-  return n;
+function sincronizarHorarioAlumnoCalendario(){
+  return 0;
 }
 
 function cargarHorarioReinscripcion(){
@@ -4261,7 +4217,6 @@ function guardarEst(){
   };
   DB.estudiantes.push(est);
   const pin=est.pinChecador;
-  const calN=sincronizarHorarioAlumnoCalendario(est,{tipoPago});
   DB.pagos.push({
     id:'p'+Date.now(),
     a:nombre,tipo:tipoPago,clase:est.clase,
@@ -4271,8 +4226,7 @@ function guardarEst(){
   syncEstadoPagoAlumno(nombre);
   saveDB();closeMdl('newEst');renderAll();
   detenerCamaraSelfie();
-  const calMsg=calN?` · ${calN} clase${calN===1?'':'s'} en calendario`:'';
-  toast(`Alumno registrado · NIP ${pin}${calMsg}`,'✓');
+  toast(`Alumno registrado · NIP ${pin}`,'✓');
 }
 
 function guardarInscripcion(){
@@ -4284,13 +4238,11 @@ function guardarInscripcion(){
   if(!alumno){toast('Selecciona un alumno','⚠️');return;}
   if(!monto.startsWith('$'))monto='$'+monto;
   const est=DB.estudiantes.find(e=>e.n===alumno);
-  let calN=0;
   if(est){
     est.clase=clase;
     if(tipo!=='Competencia'){
       est.horario=leerHorarioForm('insHorario');
       est.tipoPago=tipo;
-      calN=sincronizarHorarioAlumnoCalendario(est,{tipoPago:tipo});
     }
     est.est='pendiente';
     est.monto=monto;
@@ -4301,7 +4253,7 @@ function guardarInscripcion(){
     fecha:'—',est:'pendiente',cuenta:'principal'
   });
   saveDB();closeMdl('newInscripcion');renderAll();
-  toast(calN?`Inscripción de ${alumno} · ${calN} clases en calendario`:`Inscripción de ${alumno} registrada`,'✓');
+  toast(`Inscripción de ${alumno} registrada`,'✓');
 }
 
 function guardarReinscripcion(){
@@ -4317,7 +4269,6 @@ function guardarReinscripcion(){
   if(monto&&!String(monto).startsWith('$'))monto='$'+monto;
   e.monto=monto;
   e.est='pendiente';
-  const calN=sincronizarHorarioAlumnoCalendario(e,{tipoPago:e.tipoPago});
   const periodo=document.getElementById('reinsPeriodo')?.value?.trim()||'Jul 2026';
   DB.pagos.push({
     id:'p'+Date.now(),
@@ -4325,7 +4276,7 @@ function guardarReinscripcion(){
     fecha:'—',est:'pendiente',cuenta:'principal'
   });
   saveDB();closeMdl('newReinscripcion');renderAll();
-  toast(calN?`${e.n} re-inscrito · ${calN} clases en calendario`:`${e.n} re-inscrito correctamente`,'✓');
+  toast(`${e.n} re-inscrito correctamente`,'✓');
 }
 
 function guardarEmpleado(){
@@ -7215,6 +7166,7 @@ function mergeRecords(a,b,keyFn){
 
 function mergeDbArrays(target,remote,remoteWins){
   if(!remote||!target)return;
+  remote=sanitizarDbRemoto(remote);
   const m=(a,b,k)=>remoteWins?mergeRecords(a,b,k):mergeRecords(b,a,k);
   target.estudiantes=m(target.estudiantes,remote.estudiantes,e=>e.pinChecador||e.checId||e.n);
   target.pagos=m(target.pagos,remote.pagos,p=>p.id);
@@ -7235,6 +7187,7 @@ function mergeDbArrays(target,remote,remoteWins){
   if(remote.costosGymnastica)target.costosGymnastica=remoteWins?{...target.costosGymnastica,...remote.costosGymnastica}:{...remote.costosGymnastica,...target.costosGymnastica};
   if(remote.config)target.config=remoteWins?{...target.config,...remote.config}:{...remote.config,...target.config};
   if(remote.historialAnual)target.historialAnual=remoteWins?{...target.historialAnual,...remote.historialAnual}:{...remote.historialAnual,...target.historialAnual};
+  aplicarReglasLimpiezaDatos();
 }
 
 function mergeDbFromRemote(target,remote){mergeDbArrays(target,remote,true);}
@@ -7275,6 +7228,7 @@ function applyDbSnapshot(saved){
   if(saved.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,saved.eliminados);
   ensureNominaEvalConfig();
   persistirEliminadosEnLocal();
+  aplicarReglasLimpiezaDatos();
 }
 
 function fusionarUsuariosRemoto(remote){
@@ -7423,8 +7377,40 @@ function purgarPagosSinAlumno(){
   return DB.pagos.length!==antes;
 }
 function aplicarReglasLimpiezaDatos(){
+  cargarEliminados();
   let cambio=limpiarDatosDemoAlumnos();
   if(purgarPagosSinAlumno())cambio=true;
+  if(purgarCalendarioAlumnosEliminados())cambio=true;
+  if(purgarCalendarioAutoRegistro())cambio=true;
+  return cambio;
+}
+function sanitizarDbRemoto(db){
+  if(!db)return db;
+  cargarEliminados();
+  const bloqueado=nombreAlumnoBloqueado;
+  const out={...db};
+  if(out.estudiantes)out.estudiantes=out.estudiantes.filter(e=>!bloqueado(e?.n));
+  if(out.pagos)out.pagos=out.pagos.filter(p=>!bloqueado(p?.a)&&!(DB.eliminados?.pagos||[]).includes(p?.id));
+  if(out.recibos)out.recibos=out.recibos.filter(r=>!bloqueado(r?.alumno||r?.empleado));
+  if(out.checadas)out.checadas=out.checadas.filter(c=>!bloqueado(c?.alumno||c?.nombre||c?.n));
+  if(out.clasesPers)out.clasesPers=out.clasesPers.filter(c=>!bloqueado(c?.alumno));
+  if(out.registrosMedicos)out.registrosMedicos=out.registrosMedicos.filter(r=>!bloqueado(r?.alumno));
+  if(out.logros)out.logros=out.logros.filter(l=>!bloqueado(l?.alumno));
+  return out;
+}
+function purgarCalendarioAlumnosEliminados(){
+  const antes=(DB.clasesPers||[]).length;
+  DB.clasesPers=(DB.clasesPers||[]).filter(c=>!nombreAlumnoBloqueado(c?.alumno));
+  return DB.clasesPers.length!==antes;
+}
+function purgarCalendarioAutoRegistro(){
+  let cambio=false;
+  const antesP=(DB.clasesPers||[]).length;
+  DB.clasesPers=(DB.clasesPers||[]).filter(c=>!c.autoRegistro);
+  if(DB.clasesPers.length!==antesP)cambio=true;
+  const antesG=(DB.calendarioGrupal||[]).length;
+  DB.calendarioGrupal=(DB.calendarioGrupal||[]).filter(c=>!c.autoRegistro);
+  if(DB.calendarioGrupal.length!==antesG)cambio=true;
   return cambio;
 }
 function applyDataSeedIfNeeded(){
@@ -7544,8 +7530,9 @@ async function syncToCloud(){
     aplicarReglasLimpiezaDatos();
     const remote=await cloudModule.fetchRemoteState();
     if(remote?.db){
-      if(remote.db.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,remote.db.eliminados);
-      mergeDbForPush(DB,remote.db);
+      const dbLimpio=sanitizarDbRemoto(remote.db);
+      if(dbLimpio.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,dbLimpio.eliminados);
+      mergeDbForPush(DB,dbLimpio);
     }
     aplicarReglasLimpiezaDatos();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
@@ -7575,13 +7562,14 @@ async function pullFromCloud(silent,force){
     const remote=await cloudModule.fetchRemoteState();
     const hasDb=remote?.db&&typeof remote.db==='object';
     if(!hasDb)return false;
-    const fp=fingerprintRemoto(remote.db,remote.dbUpdatedAt);
+    const dbRemoto=sanitizarDbRemoto(remote.db);
+    const fp=fingerprintRemoto(dbRemoto,remote.dbUpdatedAt);
     if(!force&&fp===lastRemoteFingerprint)return false;
-    if(remote.db.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,remote.db.eliminados);
+    if(dbRemoto.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,dbRemoto.eliminados);
     if(force||cloudAtEsMasReciente(remote.dbUpdatedAt)){
-      applyDbSnapshot(remote.db);
+      applyDbSnapshot(dbRemoto);
     }else{
-      mergeDbFromRemote(DB,remote.db);
+      mergeDbFromRemote(DB,dbRemoto);
     }
     fusionarUsuariosRemoto(remote.usuarios);
     ensureUsuariosCredenciales();
@@ -7647,8 +7635,9 @@ async function sincronizarNubeAhora(){
     aplicarReglasLimpiezaDatos();
     const remote=await cloudModule.fetchRemoteState();
     if(remote?.db){
-      if(remote.db.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,remote.db.eliminados);
-      mergeDbForPush(DB,remote.db);
+      const dbLimpio=sanitizarDbRemoto(remote.db);
+      if(dbLimpio.eliminados)DB.eliminados=fusionarEliminados(DB.eliminados,dbLimpio.eliminados);
+      mergeDbForPush(DB,dbLimpio);
     }
     aplicarReglasLimpiezaDatos();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
@@ -7670,7 +7659,7 @@ async function loadFromCloud(){
     const remote=await cloudModule.fetchRemoteState();
     const hasDb=remote?.db&&Object.keys(remote.db).length>0;
     const hasUsers=remote?.usuarios&&Object.keys(remote.usuarios).length>0;
-    if(hasDb)applyDbSnapshot(remote.db);
+    if(hasDb)applyDbSnapshot(sanitizarDbRemoto(remote.db));
     fusionarUsuariosRemoto(remote.usuarios);
     ensureUsuariosCredenciales();
     const sucio=aplicarReglasLimpiezaDatos();
