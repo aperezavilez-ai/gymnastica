@@ -1788,7 +1788,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.19-cal-dia';
+const APP_VERSION='2026.06.19-cal-del';
 let lastDeleteAt=0;
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
@@ -5344,30 +5344,36 @@ function scrollCalMesActual(containerId,smooth){
 function eliminarClaseCalendario(tipo,id){
   ensureCalendarioData();
   const arr=tipo==='pers'?DB.clasesPers:DB.calendarioGrupal;
-  const idx=arr.findIndex(c=>c.id===id);
-  if(idx<0)return;
+  const idx=arr.findIndex(c=>String(c.id)===String(id));
+  if(idx<0){toast('No se encontró la clase','⚠️');return;}
   const c=arr[idx];
   const label=tipo==='pers'?c.alumno:c.nombre;
   if(!confirm(`¿Eliminar "${label}" — ${c.hora} del calendario?`))return;
+  if(!c.id)c.id=id;
+  registrarClaseCalEliminada(tipo,c.id);
+  lastDeleteAt=Date.now();
   arr.splice(idx,1);
   saveDB();
+  if(calDiaSeleccionado&&document.getElementById('mdl-diaCalendario')?.classList.contains('open')){
+    renderClasesDelDiaEnModal(calDiaSeleccionado);
+  }
   renderCalendario();
   const detTit=tipo==='pers'?document.getElementById('calPersDetalleTitulo'):document.getElementById('calDetalleTitulo');
   const detBody=tipo==='pers'?document.getElementById('calPersDetalleBody'):document.getElementById('calDetalleBody');
   if(detTit)detTit.textContent=tipo==='pers'?'Selecciona una clase personalizada':'Selecciona una clase para ver los alumnos';
   if(detBody)detBody.innerHTML=`<div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">${tipo==='pers'?'⭐':'📅'}</div><div>Haz clic en una clase del calendario</div></div>`;
-  if(calDiaSeleccionado&&document.getElementById('mdl-diaCalendario')?.classList.contains('open')){
-    renderClasesDelDiaEnModal(calDiaSeleccionado);
-  }
   toast('Clase eliminada del calendario','✓');
+}
+function eliminarClaseDelDiaBtn(btn){
+  const id=btn?.getAttribute('data-cal-del');
+  const tipo=btn?.getAttribute('data-cal-tipo');
+  if(id&&tipo)eliminarClaseCalendario(tipo,id);
 }
 
 function ensureCalendarioData(){
   if(!DB.calendarioGrupal)DB.calendarioGrupal=[];
   if(!DB.clasesPers)DB.clasesPers=[];
   if(DB.calendarioVersion!=='monthly.v1')migrarCalendarioAMensual();
-  if(!DB.calendarioGrupal.length)DB.calendarioGrupal=flattenCalSeed(CALENDARIO_DATA,calAnioActual(),'cg_');
-  if(!DB.clasesPers.length)DB.clasesPers=flattenCalSeed(CALENDARIO_PERS_DATA,calAnioActual(),'cp_');
 }
 
 function alumnosEnClaseCal(nombreClase){
@@ -6367,25 +6373,26 @@ function renderClasesDelDiaEnModal(fecha){
   const el=document.getElementById('diaCalLista');
   if(!el)return;
   const tipo=document.getElementById('diaCalTipo')?.value||calTabActivo;
-  ensureCalendarioData();
+  if(!DB.calendarioGrupal)DB.calendarioGrupal=[];
+  if(!DB.clasesPers)DB.clasesPers=[];
   const lista=tipo==='pers'?DB.clasesPers:DB.calendarioGrupal;
-  const delDia=(lista||[]).filter(c=>c.fecha===fecha).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+  const delDia=(lista||[]).filter(c=>c.fecha===fecha&&!claseCalEliminada(tipo,c.id)).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
   if(!delDia.length){
     el.innerHTML='<p style="color:var(--g400);font-size:13px;text-align:center;padding:14px 8px">Sin clases este día — agrega una abajo</p>';
     return;
   }
-  const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
   el.innerHTML=delDia.map(c=>{
     if(tipo==='pers'){
       return `<div class="dia-cal-item" style="border-left-color:${c.c||'#a855f7'}">
         <div class="dia-cal-item-info"><div class="t">⭐ ${c.alumno}</div><div class="s">${c.hora} · ${c.entrenador||'Entrenador'} · ${c.duracion||'60 min'}</div></div>
-        <button type="button" class="btn bw btn-xs" onclick="eliminarClaseCalendario('pers','${esc(c.id)}')">✕</button>
+        <button type="button" class="btn bw btn-xs" data-cal-tipo="pers" data-cal-del="${esc(c.id)}" onclick="eliminarClaseDelDiaBtn(this)">✕</button>
       </div>`;
     }
     const live=alumnosEnClaseCal(c.nombre).length;
     return `<div class="dia-cal-item" style="border-left-color:${c.c||'#3b82f6'}">
       <div class="dia-cal-item-info"><div class="t">📅 ${c.nombre}</div><div class="s">${c.hora} · ${live}/${c.max||20} alumnos</div></div>
-      <button type="button" class="btn bw btn-xs" onclick="eliminarClaseCalendario('grupal','${esc(c.id)}')">✕</button>
+      <button type="button" class="btn bw btn-xs" data-cal-tipo="grupal" data-cal-del="${esc(c.id)}" onclick="eliminarClaseDelDiaBtn(this)">✕</button>
     </div>`;
   }).join('');
 }
@@ -7440,16 +7447,21 @@ function esAlumnoDemo(nombre){
 }
 const ELIMINADOS_KEY='gymnastica_eliminados_v1';
 function fusionarEliminados(a,b){
-  const x=a&&typeof a==='object'?a:{alumnos:[],pagos:[]};
-  const y=b&&typeof b==='object'?b:{alumnos:[],pagos:[]};
-  const alumnos=[...new Set([...(x.alumnos||[]),...(y.alumnos||[])])];
-  const pagos=[...new Set([...(x.pagos||[]),...(y.pagos||[])])];
-  return{alumnos,pagos};
+  const x=a&&typeof a==='object'?a:{alumnos:[],pagos:[],calendarioGrupal:[],clasesPers:[]};
+  const y=b&&typeof b==='object'?b:{alumnos:[],pagos:[],calendarioGrupal:[],clasesPers:[]};
+  return{
+    alumnos:[...new Set([...(x.alumnos||[]),...(y.alumnos||[])])],
+    pagos:[...new Set([...(x.pagos||[]),...(y.pagos||[])])],
+    calendarioGrupal:[...new Set([...(x.calendarioGrupal||[]),...(y.calendarioGrupal||[])])],
+    clasesPers:[...new Set([...(x.clasesPers||[]),...(y.clasesPers||[])])],
+  };
 }
 function ensureEliminadosBD(){
-  if(!DB.eliminados||typeof DB.eliminados!=='object')DB.eliminados={alumnos:[],pagos:[]};
+  if(!DB.eliminados||typeof DB.eliminados!=='object')DB.eliminados={alumnos:[],pagos:[],calendarioGrupal:[],clasesPers:[]};
   if(!Array.isArray(DB.eliminados.alumnos))DB.eliminados.alumnos=[];
   if(!Array.isArray(DB.eliminados.pagos))DB.eliminados.pagos=[];
+  if(!Array.isArray(DB.eliminados.calendarioGrupal))DB.eliminados.calendarioGrupal=[];
+  if(!Array.isArray(DB.eliminados.clasesPers))DB.eliminados.clasesPers=[];
 }
 function persistirEliminadosEnLocal(){
   ensureEliminadosBD();
@@ -7457,7 +7469,7 @@ function persistirEliminadosEnLocal(){
 }
 function cargarEliminados(){
   ensureEliminadosBD();
-  let loc={alumnos:[],pagos:[]};
+  let loc={alumnos:[],pagos:[],calendarioGrupal:[],clasesPers:[]};
   try{
     const r=localStorage.getItem(ELIMINADOS_KEY);
     if(r)loc=JSON.parse(r);
@@ -7482,6 +7494,19 @@ function registrarPagoEliminado(pagoId,alumnoNombre){
   if(pagoId&&!el.pagos.includes(pagoId))el.pagos.push(pagoId);
   guardarEliminados(el);
   if(alumnoNombre)registrarAlumnoEliminado(alumnoNombre);
+}
+function registrarClaseCalEliminada(tipo,id){
+  if(!id)return;
+  const el=cargarEliminados();
+  const key=tipo==='pers'?'clasesPers':'calendarioGrupal';
+  if(!el[key].includes(id))el[key].push(id);
+  guardarEliminados(el);
+}
+function claseCalEliminada(tipo,id){
+  if(!id)return false;
+  cargarEliminados();
+  const key=tipo==='pers'?'clasesPers':'calendarioGrupal';
+  return(DB.eliminados?.[key]||[]).includes(id);
 }
 function nombreAlumnoBloqueado(nombre){
   if(!nombre)return false;
@@ -7533,24 +7558,41 @@ function purgarPagosSinAlumno(){
   });
   return DB.pagos.length!==antes;
 }
+function purgarCalendarioIdsEliminados(){
+  cargarEliminados();
+  const cg=new Set(DB.eliminados?.calendarioGrupal||[]);
+  const cp=new Set(DB.eliminados?.clasesPers||[]);
+  let cambio=false;
+  const ag=DB.calendarioGrupal?.length||0;
+  DB.calendarioGrupal=(DB.calendarioGrupal||[]).filter(c=>!cg.has(c.id));
+  if(DB.calendarioGrupal.length!==ag)cambio=true;
+  const ap=DB.clasesPers?.length||0;
+  DB.clasesPers=(DB.clasesPers||[]).filter(c=>!cp.has(c.id));
+  if(DB.clasesPers.length!==ap)cambio=true;
+  return cambio;
+}
 function aplicarReglasLimpiezaDatos(){
   cargarEliminados();
   let cambio=limpiarDatosDemoAlumnos();
   if(purgarPagosSinAlumno())cambio=true;
   if(purgarCalendarioAlumnosEliminados())cambio=true;
   if(purgarCalendarioAutoRegistro())cambio=true;
+  if(purgarCalendarioIdsEliminados())cambio=true;
   return cambio;
 }
 function sanitizarDbRemoto(db){
   if(!db)return db;
   cargarEliminados();
   const bloqueado=nombreAlumnoBloqueado;
+  const cgElim=new Set(DB.eliminados?.calendarioGrupal||[]);
+  const cpElim=new Set(DB.eliminados?.clasesPers||[]);
   const out={...db};
   if(out.estudiantes)out.estudiantes=out.estudiantes.filter(e=>!bloqueado(e?.n));
   if(out.pagos)out.pagos=out.pagos.filter(p=>!bloqueado(p?.a)&&!(DB.eliminados?.pagos||[]).includes(p?.id));
   if(out.recibos)out.recibos=out.recibos.filter(r=>!bloqueado(r?.alumno||r?.empleado));
   if(out.checadas)out.checadas=out.checadas.filter(c=>!bloqueado(c?.alumno||c?.nombre||c?.n));
-  if(out.clasesPers)out.clasesPers=out.clasesPers.filter(c=>!bloqueado(c?.alumno));
+  if(out.calendarioGrupal)out.calendarioGrupal=out.calendarioGrupal.filter(c=>!cgElim.has(c?.id));
+  if(out.clasesPers)out.clasesPers=out.clasesPers.filter(c=>!bloqueado(c?.alumno)&&!cpElim.has(c?.id));
   if(out.registrosMedicos)out.registrosMedicos=out.registrosMedicos.filter(r=>!bloqueado(r?.alumno));
   if(out.logros)out.logros=out.logros.filter(l=>!bloqueado(l?.alumno));
   return out;
