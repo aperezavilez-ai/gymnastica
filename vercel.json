@@ -2,5 +2,20 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!cloud-config\\.json|manifest\\.webmanifest|sw\\.js|js/|assets/).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!cloud-config\\.json|manifest\\.webmanifest|sw\\.js|js/|assets/).*)", "destination": "/index.html" }],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" }
+      ]
+    }
+  ]
 }

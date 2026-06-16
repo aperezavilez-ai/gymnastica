@@ -1,14 +1,21 @@
 {
+  "id": "https://www.gymnastica.mx/",
   "name": "Gymnastica",
   "short_name": "Gymnastica",
   "description": "Sistema de gestión deportivo — checador, alumnos, pagos y más",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#2563eb",
   "theme_color": "#2563eb",
   "lang": "es-MX",
+  "prefer_related_applications": false,
+  "capture_links": "existing-client-navigate",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "/assets/icon-192.png",
