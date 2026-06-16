@@ -206,7 +206,8 @@ html[data-pwa-mode="app"] #loginScreen.hidden{display:none!important}
 .cal-month-title{font-size:18px;font-weight:800;color:var(--g900);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--g200)}
 .cal-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .cal-day-hd{text-align:center;font-size:11px;font-weight:700;color:var(--g500);padding:6px 2px}
-.cal-day{min-height:108px;background:var(--w);border:1.5px solid var(--g200);border-radius:10px;padding:5px;display:flex;flex-direction:column;gap:3px}
+.cal-day{min-height:108px;background:var(--w);border:1.5px solid var(--g200);border-radius:10px;padding:5px;display:flex;flex-direction:column;gap:3px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.cal-day:not(.cal-day-pad):hover{border-color:var(--b300);box-shadow:0 2px 8px rgba(37,99,235,.12)}
 .cal-day-pad{background:transparent;border:none;min-height:0;pointer-events:none}
 .cal-day-today{background:var(--b50);border-color:var(--b300);box-shadow:0 0 0 2px var(--b100)}
 .cal-day-num{font-size:11px;font-weight:700;color:var(--g700);margin-bottom:2px;flex-shrink:0}
@@ -216,6 +217,11 @@ html[data-pwa-mode="app"] #loginScreen.hidden{display:none!important}
 .cal-ev:hover{filter:brightness(.96)}
 .cal-ev-t{font-weight:700}
 .cal-ev .cal-slot-del{top:2px;right:2px;width:16px;height:16px;font-size:9px}
+.dia-cal-lista{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;margin-bottom:4px}
+.dia-cal-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--g50);border:1px solid var(--g200);border-radius:10px;border-left:4px solid var(--b500)}
+.dia-cal-item-info{flex:1;min-width:0}
+.dia-cal-item-info .t{font-size:13px;font-weight:700;color:var(--g900)}
+.dia-cal-item-info .s{font-size:11.5px;color:var(--g500);margin-top:2px}
 .chec-pin{font-size:26px;letter-spacing:10px;text-align:center;padding:16px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;margin-bottom:12px;font-weight:800;color:var(--g800);min-height:52px}
 .chec-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px}
 .chec-key{padding:14px 8px;border-radius:10px;border:1.5px solid var(--g200);background:var(--w);font-size:17px;font-weight:700;cursor:pointer;font-family:var(--fn);transition:all .12s}
@@ -1557,6 +1563,28 @@ Gymnastica</textarea></div>
   </div>
 </div>
 
+<!-- DÍA DEL CALENDARIO (pop al hacer clic en un día) -->
+<div class="mbg" id="mdl-diaCalendario" onclick="if(event.target.classList.contains('mbg'))cerrarDiaCalendario()">
+  <div class="mdl" style="max-width:500px">
+    <div class="mdl-t" id="diaCalTitulo">Día</div>
+    <div class="mdl-s" id="diaCalSub">Clases programadas</div>
+    <div id="diaCalLista" class="dia-cal-lista"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--g800);margin:14px 0 10px">+ Agregar clase este día</div>
+    <div class="fg"><label class="flb">Tipo</label><select class="finp" id="diaCalTipo" onchange="toggleDiaCalTipo()"><option value="grupal">📅 Clase grupal</option><option value="pers">⭐ Clase personalizada</option></select></div>
+    <div id="diaCalGrupalFields">
+      <div class="fg"><label class="flb">Nombre de la clase</label><input class="finp" id="diaCalGrupalNombre" placeholder="Ej. Gimnasia Artística"></div>
+      <div class="g2"><div class="fg"><label class="flb">Fecha</label><input class="finp" id="diaCalGrupalFecha" type="date" readonly></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="diaCalGrupalHora" placeholder="4:00pm"></div></div>
+      <div class="fg"><label class="flb">Cupo máximo</label><input class="finp" id="diaCalGrupalCupo" type="number" min="1" max="50" value="20"></div>
+    </div>
+    <div id="diaCalPersFields" style="display:none">
+      <div class="fg"><label class="flb">Alumno</label><select class="finp" id="diaCalPersAlumno"></select></div>
+      <div class="g2"><div class="fg"><label class="flb">Fecha</label><input class="finp" id="diaCalPersFecha" type="date" readonly></div><div class="fg"><label class="flb">Hora</label><input class="finp" id="diaCalPersHora" placeholder="10:00 AM"></div></div>
+      <div class="g2"><div class="fg"><label class="flb">Entrenador</label><input class="finp" id="diaCalPersEnt" placeholder="Entrenador"></div><div class="fg"><label class="flb">Duración</label><input class="finp" id="diaCalPersDur" value="60 min"></div></div>
+    </div>
+    <div class="mdl-act"><button type="button" class="btn bw" onclick="cerrarDiaCalendario()">Cerrar</button><button type="button" class="btn bp" onclick="guardarClaseDelDia()">Agregar al día</button></div>
+  </div>
+</div>
+
 <!-- ALTA DE PERSONAL -->
 <div class="mbg" id="mdl-altaPersonal" onclick="if(event.target.classList.contains('mbg'))closeMdl('altaPersonal')">
   <div class="mdl" style="max-width:520px">
@@ -1760,7 +1788,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.19-pwa-install';
+const APP_VERSION='2026.06.19-cal-dia';
 let lastDeleteAt=0;
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
@@ -5131,6 +5159,7 @@ const CALENDARIO_DATA=[
 const CALENDARIO_PERS_DATA=[];
 
 let calTabActivo='grupal';
+let calDiaSeleccionado=null;
 const CAL_MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const CAL_DIAS_SEM_FULL=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
@@ -5243,18 +5272,25 @@ function indexarClasesPorFecha(lista){
   return map;
 }
 
+function formatoFechaCalLarga(fecha){
+  const p=fecha.split('-').map(Number);
+  if(p.length<3)return fecha;
+  const dt=new Date(p[0],p[1]-1,p[2]);
+  return `${CAL_DIAS_SEM_FULL[dt.getDay()]} ${p[2]} de ${CAL_MESES_NOM[p[1]-1]} ${p[0]}`;
+}
+
 function renderCalEventoChip(c,tipo){
   const esc=n=>String(n).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const id=esc(c.id);
   if(tipo==='pers'){
-    return `<div class="cal-ev cal-slot" style="background:${c.c}18;border-left-color:${c.c}" onclick="verClasePers('${esc(c.alumno)}','${esc(c.hora)}','${esc(c.entrenador)}','${esc(c.duracion)}','${c.c}')">
+    return `<div class="cal-ev cal-slot" style="background:${c.c}18;border-left-color:${c.c}" onclick="event.stopPropagation();verClasePers('${esc(c.alumno)}','${esc(c.hora)}','${esc(c.entrenador)}','${esc(c.duracion)}','${c.c}')">
       <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('pers','${id}')">✕</button>
       <span class="cal-ev-t" style="color:${c.c}">${c.hora}</span> ${c.alumno}
     </div>`;
   }
   const live=alumnosEnClaseCal(c.nombre).length;
   const cap=c.max||20;
-  return `<div class="cal-ev cal-slot" style="background:${c.c}15;border-left-color:${c.c}" onclick="verClase('${esc(c.nombre)}','${esc(c.hora)}',${live},${cap})">
+  return `<div class="cal-ev cal-slot" style="background:${c.c}15;border-left-color:${c.c}" onclick="event.stopPropagation();verClase('${esc(c.nombre)}','${esc(c.hora)}',${live},${cap})">
     <button type="button" class="cal-slot-del" title="Eliminar clase" onclick="event.stopPropagation();eliminarClaseCalendario('grupal','${id}')">✕</button>
     <span class="cal-ev-t" style="color:${c.c}">${c.hora}</span> ${c.nombre}
   </div>`;
@@ -5269,7 +5305,7 @@ function renderCeldasMes(anio,mes,porFecha,tipo,hoy){
     const fecha=isoFecha(anio,mes,d);
     const evs=porFecha[fecha]||[];
     const isToday=fecha===hoy;
-    cells+=`<div class="cal-day${isToday?' cal-day-today':''}">
+    cells+=`<div class="cal-day${isToday?' cal-day-today':''}" onclick="abrirDiaCalendario('${fecha}')" title="Clic para ver o agregar clases">
       <div class="cal-day-num">${d}</div>
       <div class="cal-day-evs">${evs.map(c=>renderCalEventoChip(c,tipo)).join('')}</div>
     </div>`;
@@ -5320,6 +5356,9 @@ function eliminarClaseCalendario(tipo,id){
   const detBody=tipo==='pers'?document.getElementById('calPersDetalleBody'):document.getElementById('calDetalleBody');
   if(detTit)detTit.textContent=tipo==='pers'?'Selecciona una clase personalizada':'Selecciona una clase para ver los alumnos';
   if(detBody)detBody.innerHTML=`<div style="text-align:center;padding:32px;color:var(--g400)"><div style="font-size:36px;margin-bottom:8px">${tipo==='pers'?'⭐':'📅'}</div><div>Haz clic en una clase del calendario</div></div>`;
+  if(calDiaSeleccionado&&document.getElementById('mdl-diaCalendario')?.classList.contains('open')){
+    renderClasesDelDiaEnModal(calDiaSeleccionado);
+  }
   toast('Clase eliminada del calendario','✓');
 }
 
@@ -6314,6 +6353,98 @@ function colorParaClaseGrupal(nombre){
   if(n.includes('pre'))return '#22c55e';
   if(n.includes('parkour'))return '#6366f1';
   return ['#3b82f6','#a855f7','#22c55e','#f97316','#06b6d4','#ec4899'][Math.abs(n.length)%6];
+}
+
+function toggleDiaCalTipo(){
+  const tipo=document.getElementById('diaCalTipo')?.value||calTabActivo;
+  const grupal=document.getElementById('diaCalGrupalFields');
+  const pers=document.getElementById('diaCalPersFields');
+  if(grupal)grupal.style.display=tipo==='grupal'?'block':'none';
+  if(pers)pers.style.display=tipo==='pers'?'block':'none';
+  if(calDiaSeleccionado)renderClasesDelDiaEnModal(calDiaSeleccionado);
+}
+function renderClasesDelDiaEnModal(fecha){
+  const el=document.getElementById('diaCalLista');
+  if(!el)return;
+  const tipo=document.getElementById('diaCalTipo')?.value||calTabActivo;
+  ensureCalendarioData();
+  const lista=tipo==='pers'?DB.clasesPers:DB.calendarioGrupal;
+  const delDia=(lista||[]).filter(c=>c.fecha===fecha).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+  if(!delDia.length){
+    el.innerHTML='<p style="color:var(--g400);font-size:13px;text-align:center;padding:14px 8px">Sin clases este día — agrega una abajo</p>';
+    return;
+  }
+  const esc=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  el.innerHTML=delDia.map(c=>{
+    if(tipo==='pers'){
+      return `<div class="dia-cal-item" style="border-left-color:${c.c||'#a855f7'}">
+        <div class="dia-cal-item-info"><div class="t">⭐ ${c.alumno}</div><div class="s">${c.hora} · ${c.entrenador||'Entrenador'} · ${c.duracion||'60 min'}</div></div>
+        <button type="button" class="btn bw btn-xs" onclick="eliminarClaseCalendario('pers','${esc(c.id)}')">✕</button>
+      </div>`;
+    }
+    const live=alumnosEnClaseCal(c.nombre).length;
+    return `<div class="dia-cal-item" style="border-left-color:${c.c||'#3b82f6'}">
+      <div class="dia-cal-item-info"><div class="t">📅 ${c.nombre}</div><div class="s">${c.hora} · ${live}/${c.max||20} alumnos</div></div>
+      <button type="button" class="btn bw btn-xs" onclick="eliminarClaseCalendario('grupal','${esc(c.id)}')">✕</button>
+    </div>`;
+  }).join('');
+}
+function abrirDiaCalendario(fecha){
+  if(!fecha)return;
+  calDiaSeleccionado=fecha;
+  const tipo=calTabActivo;
+  const tit=document.getElementById('diaCalTitulo');
+  const sub=document.getElementById('diaCalSub');
+  if(tit)tit.textContent=formatoFechaCalLarga(fecha);
+  if(sub)sub.textContent=tipo==='pers'?'Clases personalizadas del día':'Clases grupales del día';
+  const sel=document.getElementById('diaCalTipo');
+  if(sel)sel.value=tipo==='pers'?'pers':'grupal';
+  const fg=document.getElementById('diaCalGrupalFecha');
+  const fp=document.getElementById('diaCalPersFecha');
+  if(fg)fg.value=fecha;
+  if(fp)fp.value=fecha;
+  llenarSelectAlumnos('diaCalPersAlumno',true);
+  toggleDiaCalTipo();
+  renderClasesDelDiaEnModal(fecha);
+  openMdl('diaCalendario');
+}
+function cerrarDiaCalendario(){
+  closeMdl('diaCalendario');
+  calDiaSeleccionado=null;
+  renderCalendario();
+}
+function guardarClaseDelDia(){
+  if(!calDiaSeleccionado){toast('Selecciona un día','⚠️');return;}
+  const tipo=document.getElementById('diaCalTipo')?.value||'grupal';
+  ensureCalendarioData();
+  if(tipo==='pers'){
+    const alumno=document.getElementById('diaCalPersAlumno')?.value;
+    const hora=document.getElementById('diaCalPersHora')?.value?.trim();
+    if(!alumno||!hora){toast('Completa alumno y hora','⚠️');return;}
+    const est=DB.estudiantes.find(e=>e.n===alumno);
+    DB.clasesPers.push({
+      id:'cp_'+Date.now(),fecha:calDiaSeleccionado,alumno,hora,
+      entrenador:document.getElementById('diaCalPersEnt')?.value?.trim()||'Entrenador',
+      duracion:document.getElementById('diaCalPersDur')?.value?.trim()||'60 min',
+      c:est?.c||'#a855f7'
+    });
+    document.getElementById('diaCalPersHora').value='';
+  }else{
+    const nombre=document.getElementById('diaCalGrupalNombre')?.value?.trim();
+    const hora=document.getElementById('diaCalGrupalHora')?.value?.trim();
+    const max=parseInt(document.getElementById('diaCalGrupalCupo')?.value,10)||20;
+    if(!nombre||!hora){toast('Completa nombre y hora','⚠️');return;}
+    const live=alumnosEnClaseCal(nombre).length;
+    DB.calendarioGrupal.push({
+      id:'cg_'+Date.now(),fecha:calDiaSeleccionado,hora,nombre,alumnos:live,max,
+      c:colorParaClaseGrupal(nombre)
+    });
+    document.getElementById('diaCalGrupalHora').value='';
+  }
+  saveDB();
+  renderCalendario();
+  renderClasesDelDiaEnModal(calDiaSeleccionado);
+  toast('Clase agregada al día','✓');
 }
 
 function toggleAgendarClaseTipo(){
