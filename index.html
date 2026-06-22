@@ -1424,7 +1424,7 @@ Gymnastica</textarea></div>
     <div class="mdl-s" id="editPagoSub">Actualiza estado, monto o cancela el cobro</div>
     <input type="hidden" id="editPagoId">
     <div class="fg"><label class="flb">Estudiante</label><input class="finp" id="editPagoAlumno" readonly style="background:var(--g50)"></div>
-    <div class="g2"><div class="fg"><label class="flb">Tipo</label><input class="finp" id="editPagoTipo" readonly style="background:var(--g50)"></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="editPagoPeriodo"></div></div>
+    <div class="g2"><div class="fg"><label class="flb">Tipo</label><select class="finp" id="editPagoTipo"><option>Mensualidad</option><option>Clase semanal</option><option>Clase personalizada</option><option>Competencia</option><option>Re-inscripción</option></select></div><div class="fg"><label class="flb">Periodo</label><input class="finp" id="editPagoPeriodo"></div></div>
     <div class="g2"><div class="fg"><label class="flb">Clase / Evento</label><input class="finp" id="editPagoClase"></div><div class="fg"><label class="flb">Monto</label><input class="finp" id="editPagoMonto" placeholder="$850"></div></div>
     <div class="g2"><div class="fg"><label class="flb">Estado</label><select class="finp" id="editPagoEstado" onchange="toggleEditPagoFecha()"><option value="pendiente">Pendiente</option><option value="vencido">Vencido</option><option value="pagado">Pagado</option><option value="cancelado">Cancelado</option></select></div><div class="fg"><label class="flb">Fecha de pago</label><input class="finp" id="editPagoFecha" placeholder="01/Jun/2026"></div></div>
     <div class="g2"><div class="fg"><label class="flb">Método</label><select class="finp" id="editPagoMetodo"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></div><div class="fg"><label class="flb">Cuenta destino</label><select class="finp" id="editPagoCuenta"></select></div></div>
@@ -1788,7 +1788,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.19-cal-del';
+const APP_VERSION='2026.06.19-edit-pago';
 let lastDeleteAt=0;
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
@@ -2892,6 +2892,22 @@ function irAPagoAlumnoDesdeEst(nombre){
   },150);
 }
 function abrirPagoRapido(nombre){irAPagoAlumnoDesdeEst(nombre);}
+function tiposPagoOpciones(){
+  return['Mensualidad','Clase semanal','Clase personalizada','Competencia','Re-inscripción'];
+}
+function setSelectEditPagoTipo(valor){
+  const sel=document.getElementById('editPagoTipo');
+  if(!sel)return;
+  const v=String(valor||'').trim()||'Mensualidad';
+  const opts=tiposPagoOpciones();
+  sel.innerHTML=opts.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(!opts.includes(v)){
+    const o=document.createElement('option');
+    o.value=v;o.textContent=v;
+    sel.appendChild(o);
+  }
+  sel.value=v;
+}
 function abrirEditarPago(id){
   ensureCuentas();
   ensurePagoIds();
@@ -2900,7 +2916,7 @@ function abrirEditarPago(id){
   editPagoId=id;
   document.getElementById('editPagoId').value=id;
   document.getElementById('editPagoAlumno').value=p.a;
-  document.getElementById('editPagoTipo').value=p.tipo;
+  setSelectEditPagoTipo(p.tipo);
   document.getElementById('editPagoPeriodo').value=p.periodo||'';
   document.getElementById('editPagoClase').value=p.clase||'';
   document.getElementById('editPagoMonto').value=p.monto||'';
@@ -2930,6 +2946,7 @@ function guardarEdicionPago(){
   const nuevoMonto=parseMontoNum(montoStr);
   const nuevaCuenta=document.getElementById('editPagoCuenta')?.value||'principal';
   if(pagoEstaCobrado(estAnterior))revertirCobroEnCuenta({est:estAnterior,cuenta:cuentaAnterior,monto:p.monto});
+  p.tipo=document.getElementById('editPagoTipo')?.value?.trim()||p.tipo;
   p.periodo=document.getElementById('editPagoPeriodo')?.value?.trim()||p.periodo;
   p.clase=document.getElementById('editPagoClase')?.value?.trim()||p.clase;
   p.monto=montoStr;
