@@ -1,4 +1,4 @@
-const CACHE = 'gymnastica-v18';
+const CACHE = 'gymnastica-v19';
 const SHELL = ['/assets/icono-gym.png', '/assets/icon-192.png', '/assets/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

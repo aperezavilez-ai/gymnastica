@@ -328,6 +328,12 @@ tr:hover td{background:rgba(248,250,252,.8)}
 .mdl{background:var(--w);border:1.5px solid var(--g200);border-radius:16px;padding:28px;width:520px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--sh4)}
 .mdl-t{font-size:17px;font-weight:800;color:var(--g900);margin-bottom:4px;letter-spacing:-.3px}
 .mdl-s{font-size:13px;color:var(--g500);margin-bottom:22px}
+.mdl-head-edit{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.mdl-head-edit .mdl-head-txt{flex:1;min-width:0}
+.mdl-head-edit .mdl-t{margin-bottom:4px}
+.mdl-head-edit .mdl-s{margin-bottom:0}
+.edit-est-foto{width:72px;height:72px;border-radius:14px;object-fit:cover;border:2px solid var(--g200);background:var(--g100);flex-shrink:0;box-shadow:var(--sh1)}
+.edit-est-foto-placeholder{width:72px;height:72px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:var(--sh1)}
 .mdl-act{display:flex;gap:8px;justify-content:flex-end;padding-top:18px;border-top:1px solid var(--g100);margin-top:18px}
 .fsec{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:15px;margin-bottom:14px}
 .fsec-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--g500);margin-bottom:12px}
@@ -1521,8 +1527,13 @@ Gymnastica</textarea></div>
 <!-- EDITAR ALUMNO -->
 <div class="mbg" id="mdl-editEst" onclick="if(event.target.classList.contains('mbg'))closeMdl('editEst')">
   <div class="mdl" style="max-width:520px">
-    <div class="mdl-t">Editar alumno</div>
-    <div class="mdl-s" id="editEstSub">—</div>
+    <div class="mdl-head-edit">
+      <div class="mdl-head-txt">
+        <div class="mdl-t">Editar alumno</div>
+        <div class="mdl-s" id="editEstSub">—</div>
+      </div>
+      <div id="editEstFotoWrap"></div>
+    </div>
     <div class="fg"><label class="flb">Nombre</label><input class="finp" id="editEstNombre"></div>
     <div class="g2"><div class="fg"><label class="flb">Edad</label><input class="finp" id="editEstEdad" type="number" min="3" max="99"></div><div class="fg"><label class="flb">Clase</label><select class="finp" id="editEstClase"><option>Gimnasia Artística</option><option>Gimnasia para Adultos</option><option>Parkour</option><option>Gimnasia Rítmica</option><option>Pre-escolar</option></select></div></div>
     <div class="fg"><label class="flb">Horario de clases</label><div class="horario-slots" id="editEstHorarioSlots"></div></div>
@@ -1788,7 +1799,7 @@ const USUARIOS={
 };
 
 // ═══════ STATE ═══════
-const APP_VERSION='2026.06.19-edit-pago';
+const APP_VERSION='2026.06.19-edit-foto';
 let lastDeleteAt=0;
 const CONFIG_ACC_KEY='gymnastica_config_unlock';
 let configAccesoPendingSbIt=null;
@@ -2606,11 +2617,24 @@ function filtrarEstudiantes(est){
   toast('Filtro: '+lbl,'✓');
 }
 
+function mostrarFotoEditEst(est){
+  const wrap=document.getElementById('editEstFotoWrap');
+  if(!wrap)return;
+  const esc=s=>String(s||'').replace(/"/g,'&quot;');
+  if(est?.selfie){
+    wrap.innerHTML=`<img class="edit-est-foto" src="${esc(est.selfie)}" alt="Foto de ${esc(est.n)}">`;
+  }else{
+    const ini=(est?.n||'?').charAt(0).toUpperCase();
+    const bg=est?.c||'var(--b500)';
+    wrap.innerHTML=`<div class="edit-est-foto-placeholder" style="background:${bg}" title="Sin foto en registro">${ini}</div>`;
+  }
+}
 function editarEstudiante(idx){
   const e=DB.estudiantes[idx];
   if(!e)return;
   editEstIdx=idx;
   document.getElementById('editEstSub').textContent=e.n;
+  mostrarFotoEditEst(e);
   document.getElementById('editEstNombre').value=e.n;
   document.getElementById('editEstEdad').value=e.edad||'';
   document.getElementById('editEstClase').value=e.clase||'Gimnasia Artística';
